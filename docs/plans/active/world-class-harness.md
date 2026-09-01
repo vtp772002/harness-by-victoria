@@ -108,6 +108,8 @@ Out of scope:
 - [x] Run full validation and record measured limits for this phase.
 - [x] Add signed GitHub artifact provenance to every platform release binary,
       with a workflow contract and negative proof.
+- [x] Close review-found Agent Skills parser and wrapper-ownership gaps with
+      fail-closed parsing and cross-platform consumer-preservation proof.
 
 ## Decisions
 
@@ -134,6 +136,10 @@ Out of scope:
   `actions/attest@v4` after checksum and lifecycle proof, while retaining
   SHA-256 sidecars and leaving offline/independent publisher trust and SBOM
   policy out of scope.
+- 2026-09-01: Treat the explicit Claude wrapper marker and the repository's
+  scalar frontmatter subset as ownership and parsing boundaries. Refresh never
+  infers ownership from a generic heading, and malformed flow/quoted values
+  fail with a field-level diagnostic.
 
 ## Validation
 
@@ -162,6 +168,13 @@ Out of scope:
   action, subject path, least-privilege build permissions, and reusable caller
   permissions; a temporary fixture with the action removed fails the intended
   contract.
+- Local review-fix proof: the Agent Skills validator rejects malformed quoted,
+  flow-collection, and flow-mapping metadata; Bash preserves a consumer skill
+  that reuses the old wrapper heading; PowerShell has the equivalent hosted
+  regression.
+- Hosted review-fix proof: run `33497348728` passed both Ubuntu and Windows
+  jobs on commit `89800e8`, including the new parser and wrapper-ownership
+  tests.
 - Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
   adding the Claude skill manifest, metadata-drift checks, stale-wrapper
   refresh tests, and release classification coverage.

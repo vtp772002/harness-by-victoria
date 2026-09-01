@@ -54,6 +54,9 @@ No .github/skills/ copy or client runtime is added by this decision.
 ## Verification
 
 scripts/validate-skill-bundles.py is the repository-native validator.
-tests/skills/test-skill-bundles.sh proves both a conforming bundle and an
-invalid-name rejection. scripts/validate-premerge.sh runs the validator, and
-the checked-in pre-merge workflow invokes that entrypoint.
+tests/skills/test-skill-bundles.sh proves a conforming bundle, invalid metadata
+names, and malformed quoted, flow-collection, and flow-mapping values.
+scripts/validate-premerge.sh runs the validator, and the checked-in pre-merge
+workflow invokes that entrypoint. Bash and PowerShell installer tests prove
+that only an explicitly marked Claude wrapper is refreshable; a consumer file
+with the historical heading remains unchanged.
