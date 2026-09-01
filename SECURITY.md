@@ -43,7 +43,9 @@ issues, pull requests, logs, or evaluation artifacts.
 ## Current trust limitations
 
 The bootstrap verifies the SHA-256 sidecar and reported version for the
-selected release. This proves bytes relative to that GitHub release; it is not
-an independent publisher-compromise defense. The repository does not claim
-that installing Harness supplies a host-agent sandbox, permission boundary,
-secret isolation, or production telemetry.
+selected release. The release build is configured to generate a GitHub artifact
+attestation for each platform binary, but this repository has not yet observed
+that proof on its own published release. Both controls depend on GitHub's
+hosted trust path and do not provide an independent publisher-compromise defense.
+The repository does not claim that installing Harness supplies a host-agent
+sandbox, permission boundary, secret isolation, or production telemetry.
