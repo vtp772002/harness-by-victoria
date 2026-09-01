@@ -340,6 +340,24 @@ try {
     if ($AcceptedSymlink) { throw "installer unexpectedly followed a scripts reparse point" }
     if (Get-ChildItem $SymlinkSink -Force | Select-Object -First 1) { throw "installer wrote through scripts reparse point" }
 
+    # Optional compatibility paths are preflighted before core installation,
+    # so a Gemini reparse point cannot leave a partial Harness core.
+    $OptionalReparseTarget = Join-Path $Temp "optional-reparse"
+    $OptionalReparseSink = Join-Path $Temp "optional-reparse-sink"
+    New-Item -ItemType Directory -Force $OptionalReparseTarget, $OptionalReparseSink | Out-Null
+    New-Item -ItemType Junction -Path (Join-Path $OptionalReparseTarget "GEMINI.md") -Target $OptionalReparseSink | Out-Null
+    $AcceptedOptionalReparse = $false
+    try {
+        Invoke-Install $OptionalReparseTarget @("Gemini")
+        $AcceptedOptionalReparse = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("refusing symlink or reparse point for GEMINI.md")) { throw }
+    }
+    if ($AcceptedOptionalReparse) { throw "installer unexpectedly accepted an optional Gemini reparse point" }
+    foreach ($PartialPath in @("AGENTS.md", "docs", ".harness-core")) {
+        if (Test-Path (Join-Path $OptionalReparseTarget $PartialPath)) { throw "optional reparse preflight left partial core path: $PartialPath" }
+    }
+
     # Remote bootstrap validates both checksum and release/binary identity.
     $RemoteInstaller = Join-Path $Temp "install-harness.ps1"
     Copy-Item $Installer $RemoteInstaller

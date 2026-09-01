@@ -120,6 +120,21 @@ grep -Fq 'refusing symlink for Harness path .agents/skills/engineering-wisdom/SK
   "$temp/broken-payload.out"
 [[ ! -e "$broken_sink/skill.md" ]]
 
+# Optional compatibility paths are preflighted before core installation, so a
+# malicious or accidental Gemini symlink cannot leave a partial Harness core.
+broken_optional="$temp/broken-optional"
+broken_optional_sink="$temp/broken-optional-sink"
+mkdir -p "$broken_optional" "$broken_optional_sink"
+ln -s "$broken_optional_sink/GEMINI.md" "$broken_optional/GEMINI.md"
+if install --directory "$broken_optional" --gemini --yes >"$temp/broken-optional.out" 2>&1; then
+  echo 'installer unexpectedly accepted an optional loader symlink' >&2
+  exit 1
+fi
+grep -Fq 'refusing symlink for GEMINI.md' "$temp/broken-optional.out"
+[[ ! -e "$broken_optional/AGENTS.md" ]]
+[[ ! -e "$broken_optional/docs" ]]
+[[ ! -e "$broken_optional/.harness-core" ]]
+
 # Force still overwrites an opted-in advisory file and backs up its old bytes.
 force="$temp/force"
 mkdir -p "$force/.agents/skills/engineering-wisdom"

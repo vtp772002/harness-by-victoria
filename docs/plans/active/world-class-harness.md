@@ -119,6 +119,9 @@ Out of scope:
 - [x] Add an optional, marker-owned Gemini CLI context loader using Gemini's
       native `@./AGENTS.md` import while preserving `AGENTS.md` as the only
       policy source; prove equivalent cross-platform lifecycle behavior.
+- [x] Preflight all selected optional loader and add-on paths before core
+      installation so symlink or reparse-point failures cannot leave a partial
+      core installation.
 
 ## Decisions
 
@@ -203,6 +206,9 @@ Out of scope:
   native `@./AGENTS.md` import, consumer-text preservation, marked-block
   refresh, backup, idempotence, and malformed-marker rejection. PowerShell
   coverage is included for hosted Windows execution.
+- Local optional-path safety proof: Bash rejects a Gemini symlink before any
+  `AGENTS.md`, `docs/`, or `.harness-core/` path is created; PowerShell has the
+  equivalent junction regression for hosted Windows execution.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result

@@ -42,6 +42,7 @@ enforce a sandbox, authorize tools, or replace host-agent controls.
 
 The native installer mode contracts prove creation, preservation, marked-block
 refresh, backup, idempotence, and malformed-marker rejection on Bash and
-PowerShell. `tests/installer/assert-agent-authority-contract.sh` verifies the
-loader imports `AGENTS.md`. The normal pre-merge contract runs both repository
-and Windows installer checks.
+PowerShell. The installers preflight the selected Gemini path before any core
+write and fail closed on a symlink or reparse point. `tests/installer/assert-agent-authority-contract.sh`
+verifies the loader imports `AGENTS.md`. The normal pre-merge contract runs
+both repository and Windows installer checks.

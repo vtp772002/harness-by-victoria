@@ -133,6 +133,31 @@ function Assert-NoReparseComponents([string]$Relative, [string]$Label) {
     }
 }
 
+function Assert-OptionalTargetPaths {
+    if ($WithEngineeringWisdom) {
+        foreach ($file in (Get-PayloadFiles $script:EngineeringWisdomPayloadManifest)) {
+            Assert-NoReparseComponents $file "Harness path $file"
+        }
+    }
+    if ($Claude) {
+        Assert-NoReparseComponents "CLAUDE.md" "CLAUDE.md"
+        foreach ($file in (Get-PayloadFiles $script:ClaudeSkillsPayloadManifest)) {
+            Assert-NoReparseComponents $file "Harness path $file"
+        }
+        if ($WithEngineeringWisdom) {
+            Assert-NoReparseComponents ".claude/skills/engineering-wisdom/SKILL.md" `
+                "Harness path .claude/skills/engineering-wisdom/SKILL.md"
+        }
+    }
+    if ($Copilot) {
+        Assert-NoReparseComponents ".github/copilot-instructions.md" `
+            ".github/copilot-instructions.md"
+    }
+    if ($Gemini) {
+        Assert-NoReparseComponents "GEMINI.md" "GEMINI.md"
+    }
+}
+
 function Copy-HarnessFile([string]$Relative) {
     $target = Join-Path $script:TargetDir $Relative
     Assert-NoReparseComponents $Relative "Harness path $Relative"
@@ -750,6 +775,8 @@ if ($Merge -and $Override) {
 if (!$DryRun -and !(Test-Path $script:TargetDir)) {
     New-Item -ItemType Directory -Force -Path $script:TargetDir | Out-Null
 }
+
+Assert-OptionalTargetPaths
 
 $protectedPaths = @("AGENTS.md", "docs")
 foreach ($protected in $protectedPaths) {

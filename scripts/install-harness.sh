@@ -245,6 +245,46 @@ $manifest
 EOF
 }
 
+preflight_manifest_paths() {
+  local payload_manifest="$1"
+  local manifest
+  local relative
+
+  manifest="$(read_payload_manifest "$payload_manifest")"
+  while IFS= read -r relative || [ -n "$relative" ]; do
+    relative="${relative%$'\r'}"
+    case "$relative" in
+      ""|\#*)
+        continue
+        ;;
+    esac
+    validate_target_components "$relative" "Harness path $relative"
+  done <<EOF
+$manifest
+EOF
+}
+
+preflight_optional_paths() {
+  if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
+    preflight_manifest_paths "$ENGINEERING_WISDOM_PAYLOAD_MANIFEST"
+  fi
+  if [ "$INSTALL_CLAUDE_SHIM" -eq 1 ]; then
+    validate_target_components "CLAUDE.md" "CLAUDE.md"
+    preflight_manifest_paths "$CLAUDE_SKILLS_PAYLOAD_MANIFEST"
+    if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
+      validate_target_components ".claude/skills/engineering-wisdom/SKILL.md" \
+        "Harness path .claude/skills/engineering-wisdom/SKILL.md"
+    fi
+  fi
+  if [ "$INSTALL_COPILOT_INSTRUCTIONS" -eq 1 ]; then
+    validate_target_components ".github/copilot-instructions.md" \
+      ".github/copilot-instructions.md"
+  fi
+  if [ "$INSTALL_GEMINI_CONTEXT" -eq 1 ]; then
+    validate_target_components "GEMINI.md" "GEMINI.md"
+  fi
+}
+
 agent_shim_block() {
   read_source_text "scripts/agent-harness-block.md"
 }
@@ -1264,6 +1304,7 @@ else
 fi
 
 if [ -d "$TARGET_DIR" ]; then
+  preflight_optional_paths
   check_protected_target_paths
 fi
 

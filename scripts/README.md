@@ -73,8 +73,9 @@ repository publishes its own versioned binary release, the core binary still
 comes from the upstream release channel; `HARNESS_CORE_CLI_BASE_URL` can point
 to an authorized alternative. Before bootstrap-managed writes, they reject
 symlink or reparse-point traversal in managed target paths, including optional payloads,
-agent shims, and `.gitignore`. They do not contain a database or compatibility
-profile.
+agent shims, and `.gitignore`. Selected optional paths are preflighted before
+the core candidate is allowed to write. They do not contain a database or
+compatibility profile.
 
 ## Core Release
 

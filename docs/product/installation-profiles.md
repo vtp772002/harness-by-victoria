@@ -40,6 +40,8 @@ Core installation:
 - records exact upstream bytes under `.harness-core/`;
 - preserves consumer files through merge or human-directed conflict handling;
 - backs up replaced files;
+- preflights every selected optional loader and add-on path before any core
+  write;
 - rejects symlink or reparse-point traversal in bootstrap-managed target paths;
 - uses a fresh, repository-local backup directory for each invocation;
 - does not install an application stack or product policy;
