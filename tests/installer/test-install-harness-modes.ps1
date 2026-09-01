@@ -136,7 +136,7 @@ try {
     if (([regex]::Matches($CopilotText, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Copilot loader marker is not idempotent" }
     $CopilotBackup = Get-ChildItem (Join-Path $Copilot ".harness-backup") -Recurse -Filter "copilot-instructions.md" -File | Select-Object -First 1
     if (!$CopilotBackup -or (Get-FileHash -Algorithm SHA256 $CopilotBackup.FullName).Hash -ne $CopilotBefore) { throw "PowerShell Copilot loader backup does not match prior instructions" }
-    Invoke-Install $Copilot @("Copilot")
+    Invoke-Install $Copilot @("Copilot", "Merge")
     $CopilotText = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
     if (([regex]::Matches($CopilotText, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Copilot loader is not idempotent" }
 

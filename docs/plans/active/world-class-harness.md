@@ -113,6 +113,9 @@ Out of scope:
 - [x] Add the standalone core release runbook, including exact source
       preconditions, five-platform proof order, attestation verification, and
       recovery rules for the first repository-owned binary channel.
+- [x] Add an optional, marker-owned GitHub Copilot instruction loader while
+      preserving `AGENTS.md` as the only policy source; prove creation,
+      refresh, backup, idempotence, and malformed-marker rejection.
 
 ## Decisions
 
@@ -143,6 +146,9 @@ Out of scope:
   scalar frontmatter subset as ownership and parsing boundaries. Refresh never
   infers ownership from a generic heading, and malformed flow/quoted values
   fail with a field-level diagnostic.
+- 2026-09-01: Adopt Decision 0033: keep `AGENTS.md` canonical and expose
+  Copilot's repository-wide instruction surface only through an explicit,
+  marker-owned loader; do not create `.github/skills/` duplicates.
 
 ## Validation
 
@@ -183,6 +189,10 @@ Out of scope:
 - Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
   adding the Claude skill manifest, metadata-drift checks, stale-wrapper
   refresh tests, and release classification coverage.
+- Local Copilot proof: Bash and PowerShell installer contracts cover optional
+  creation, consumer-text preservation, marked-block refresh, backup,
+  idempotence, and malformed-marker rejection; the full pre-merge protocol
+  passes locally after the Windows fixture correction.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result
@@ -194,7 +204,10 @@ metadata-only external trajectory validator. Each scorecard report records
 reproduction metadata and retains bounded failure diagnostics. Bootstrap-
 managed writes now fail closed on broken symlinks and reparse points. Hosted
 CI now runs the Node 24-compatible action majors on both Linux and Windows.
-The plan remains active for future authority-gated work such as wiring a specific
-external runner, defining a machine-facing CLI error contract, or adding
-additional client adapters; none of those choices are implied by the current
-adapter.
+The repository also exposes an optional Copilot instruction bridge while
+keeping `AGENTS.md` canonical, and the README/docs now describe the supported
+Codex, Claude Code, GitHub Copilot, and Cursor discovery paths. The plan
+remains active for future authority-gated work such as wiring a specific
+external runner, defining a machine-facing CLI error contract, publishing and
+migrating to the repository-owned binary channel, or adding additional client
+adapters; none of those choices are implied by the current adapters.
