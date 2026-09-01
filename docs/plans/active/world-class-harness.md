@@ -100,6 +100,8 @@ Out of scope:
       so permitted fields cannot carry free-form payload syntax.
 - [x] Migrate GitHub Actions to the Node 24-compatible action majors and verify
       the hosted Linux and Windows jobs on the personal repository.
+- [x] Close the Bash/PowerShell Claude Code shim parity gap using the canonical
+      marked-block, preservation, backup, and idempotence contract.
 - [x] Run full validation and record measured limits for this phase.
 
 ## Decisions
@@ -129,6 +131,9 @@ Out of scope:
 - External evidence proof: metadata-only trajectory fixtures cover a completed
   mutation, an authority-boundary stop, mutation-before-authority rejection,
   forbidden sensitive payload rejection, and free-form metadata-label rejection.
+- Cross-client proof: Bash and PowerShell now expose equivalent Claude Code shim
+  installation paths; the PowerShell contract covers preservation, backup,
+  idempotence, and malformed-marker rejection.
 - Hosted CI proof: run `33488461227` passed both the repository contract on
   Ubuntu and the PowerShell installer contract on Windows after the action
   migration; no Node 20 deprecation warning was emitted by the updated actions.

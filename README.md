@@ -101,6 +101,10 @@ Use `--merge` / `-Merge` to preserve existing files and add only missing
 Harness paths. Use `--override` / `-Override` only when replacement is
 intentional. Use `--dry-run` / `-DryRun` to preview.
 
+For Claude Code, add `--claude` to the Bash installer or `-Claude` to the
+PowerShell installer. Both options preserve local `CLAUDE.md` rules and import
+the canonical `AGENTS.md` instructions through one managed block.
+
 The bootstrap downloads a versioned `harness` binary and checksum, verifies
 release identity, and delegates installation to that candidate. Until this
 repository publishes its own versioned binary release, the bootstrap's core

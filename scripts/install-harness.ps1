@@ -7,6 +7,7 @@ param(
     [switch]$Merge,
     [switch]$WithEngineeringWisdom,
     [switch]$RefreshAgentShim,
+    [switch]$Claude,
     [switch]$Override,
     [switch]$Force,
     [switch]$DryRun
@@ -171,6 +172,10 @@ function Get-AgentShimBlock {
     return (Read-SourceText "scripts/agent-harness-block.md").TrimEnd("`r", "`n")
 }
 
+function Get-ClaudeShimBlock {
+    return (Read-SourceText "scripts/claude-harness-block.md").TrimEnd("`r", "`n")
+}
+
 function Assert-HarnessMarkers([string]$Content, [string]$Label) {
     $begin = [regex]::Matches($Content, '<!-- HARNESS:BEGIN -->')
     $end = [regex]::Matches($Content, '<!-- HARNESS:END -->')
@@ -220,6 +225,93 @@ function Refresh-AgentShimFile {
     Set-Content -LiteralPath $target -Value $content -NoNewline
     Write-Step "updated  AGENTS.md (refreshed Harness block; backup: $($backup.Substring($script:TargetDir.Length + 1)))"
     $script:Updated++
+}
+
+function Backup-ClaudeFile {
+    $target = Join-Path $script:TargetDir "CLAUDE.md"
+    if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $script:BackupDir | Out-Null
+    $backup = Join-Path $script:BackupDir "CLAUDE.md"
+    if (!(Test-Path -LiteralPath $backup)) {
+        Copy-Item -LiteralPath $target -Destination $backup
+    }
+}
+
+function Write-ClaudeShim {
+    if (!$Claude) {
+        return
+    }
+
+    $target = Join-Path $script:TargetDir "CLAUDE.md"
+    Assert-NoReparseComponents "CLAUDE.md" "CLAUDE.md"
+    $sourceTarget = Join-Path $script:Source.Root "CLAUDE.md"
+    if ($script:Source.Mode -eq "local" -and (Test-Path -LiteralPath $target -PathType Leaf) -and
+        [System.IO.Path]::GetFullPath($target) -eq [System.IO.Path]::GetFullPath($sourceTarget)) {
+        Write-Step "skip     CLAUDE.md (source file)"
+        $script:Skipped++
+        return
+    }
+
+    $exists = Test-Path -LiteralPath $target -PathType Leaf
+    $content = if ($exists) { Get-Content -LiteralPath $target -Raw } else { "" }
+    if ($exists) {
+        Assert-HarnessMarkers $content "CLAUDE.md"
+    }
+
+    $block = Get-ClaudeShimBlock
+    $pattern = '(?s)<!-- HARNESS:BEGIN -->.*?<!-- HARNESS:END -->'
+    $current = [regex]::Match($content, $pattern)
+    $currentText = if ($current.Success) { $current.Value.Replace("`r`n", "`n").TrimEnd() } else { "" }
+    $blockText = $block.Replace("`r`n", "`n").TrimEnd()
+
+    if ($current.Success -and $currentText -eq $blockText) {
+        Write-Step "skip     CLAUDE.md (Harness block current)"
+        $script:Skipped++
+        return
+    }
+
+    if ($DryRun) {
+        if ($current.Success) {
+            Write-Step "update   CLAUDE.md (refresh marked Harness block, backup first)"
+        } elseif ($exists) {
+            Write-Step "update   CLAUDE.md (append Harness block, backup first)"
+        } else {
+            Write-Step "create   CLAUDE.md"
+        }
+        if ($exists) {
+            $script:Updated++
+        } else {
+            $script:Created++
+        }
+        return
+    }
+
+    if ($current.Success) {
+        Backup-ClaudeFile
+        $content = [regex]::Replace(
+            $content,
+            $pattern,
+            [System.Text.RegularExpressions.MatchEvaluator]{ param($match) $block }
+        )
+        Set-Content -LiteralPath $target -Value $content -NoNewline
+        Write-Step "updated  CLAUDE.md (refreshed Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/CLAUDE.md)"
+    } elseif ($exists) {
+        Backup-ClaudeFile
+        Set-Content -LiteralPath $target -Value ($content.TrimEnd() + "`n`n" + $block + "`n") -NoNewline
+        Write-Step "updated  CLAUDE.md (appended Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/CLAUDE.md)"
+    } else {
+        New-Item -ItemType Directory -Force -Path $script:TargetDir | Out-Null
+        Set-Content -LiteralPath $target -Value ("# Project Rules`n`n" + $block + "`n") -NoNewline
+        Write-Step "created  CLAUDE.md"
+    }
+
+    if ($exists) {
+        $script:Updated++
+    } else {
+        $script:Created++
+    }
 }
 
 function Get-HarnessReleaseTag {
@@ -456,6 +548,7 @@ Install-HarnessCore
 
 Install-EngineeringWisdom
 Refresh-AgentShimFile
+Write-ClaudeShim
 
 Write-Step ""
 Write-Step "Done. Created: $script:Created, updated: $script:Updated, skipped: $script:Skipped."

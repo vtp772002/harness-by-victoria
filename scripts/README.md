@@ -32,7 +32,8 @@ installed core. Its contract test is part of pre-merge validation.
 - `engineering-wisdom-install-files.txt`: independent optional advisory
   payload.
 - `agent-harness-block.md` and `claude-harness-block.md`: managed entrypoint
-  shims.
+  shims. `--claude` / `-Claude` enables the Claude Code shim through the Bash
+  / PowerShell bootstrap respectively.
 
 The bootstraps require a 64-character hexadecimal SHA-256 sidecar, normalize
 its case, verify the candidate checksum and reported version before delegating

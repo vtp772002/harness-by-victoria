@@ -75,6 +75,36 @@ try {
     }
     if (Test-Path (Join-Path $Fresh ".agents/skills/engineering-wisdom")) { throw "core implicitly installed engineering wisdom" }
 
+    # The Claude shim is available through the PowerShell bootstrap with the
+    # same canonical block, preservation, idempotence, and backup contract.
+    $Claude = Join-Path $Temp "claude"
+    New-Item -ItemType Directory -Force $Claude | Out-Null
+    "# Local Claude Rules`n`nKeep this Claude-only rule.`n" | Set-Content (Join-Path $Claude "CLAUDE.md")
+    $ClaudeBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Claude "CLAUDE.md")).Hash
+    Invoke-Install $Claude @("Merge", "Claude")
+    $ClaudeText = Get-Content -Raw (Join-Path $Claude "CLAUDE.md")
+    if (!$ClaudeText.Contains("Keep this Claude-only rule.") -or !$ClaudeText.Contains("@AGENTS.md")) { throw "PowerShell Claude shim did not preserve or import canonical instructions" }
+    $ClaudeBegin = ([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count
+    $ClaudeEnd = ([regex]::Matches($ClaudeText, '<!-- HARNESS:END -->')).Count
+    if ($ClaudeBegin -ne 1 -or $ClaudeEnd -ne 1) { throw "PowerShell Claude shim marker count is not idempotent" }
+    $ClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "CLAUDE.md" -File | Select-Object -First 1
+    if (!$ClaudeBackup -or (Get-FileHash -Algorithm SHA256 $ClaudeBackup.FullName).Hash -ne $ClaudeBefore) { throw "PowerShell Claude shim backup does not match prior CLAUDE.md" }
+    Invoke-Install $Claude @("Merge", "Claude")
+    $ClaudeText = Get-Content -Raw (Join-Path $Claude "CLAUDE.md")
+    if (([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count -ne 1) { throw "PowerShell Claude shim is not idempotent" }
+
+    $MalformedClaude = Join-Path $Temp "malformed-claude"
+    New-Item -ItemType Directory -Force $MalformedClaude | Out-Null
+    "custom`n<!-- HARNESS:BEGIN -->`nstale without end" | Set-Content (Join-Path $MalformedClaude "CLAUDE.md")
+    $AcceptedMalformedClaude = $false
+    try {
+        Invoke-Install $MalformedClaude @("Claude")
+        $AcceptedMalformedClaude = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("exactly one complete Harness marker pair")) { throw }
+    }
+    if ($AcceptedMalformedClaude) { throw "installer unexpectedly accepted malformed Claude markers" }
+
     # Engineering wisdom remains explicit-only.
     $Wisdom = Join-Path $Temp "wisdom"
     Invoke-Install $Wisdom @("WithEngineeringWisdom")

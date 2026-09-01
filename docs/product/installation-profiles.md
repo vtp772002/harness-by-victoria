@@ -12,6 +12,11 @@ explicit-only onboarding and improvement skills.
 The platform bootstrap installs a checksum-verified `harness` binary under
 `scripts/bin/` and delegates installation or update to that candidate.
 
+The Bash `--claude` and PowerShell `-Claude` options install or refresh the
+optional Claude Code shim. The shim imports the canonical `AGENTS.md` source,
+preserves local Claude-only rules, backs up replacement bytes, and uses the
+same marked block contract on both platforms.
+
 Core installation:
 
 - records exact upstream bytes under `.harness-core/`;

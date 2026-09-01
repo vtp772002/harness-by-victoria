@@ -138,7 +138,9 @@ grep -Fq 'ENGINEERING_WISDOM_PAYLOAD_MANIFEST="scripts/engineering-wisdom-instal
 ! grep -Fq 'CLI_PAYLOAD_MANIFEST' "$root/scripts/install-harness.sh"
 
 grep -Fq 'Read-SourceText "scripts/agent-harness-block.md"' "$root/scripts/install-harness.ps1"
+grep -Fq 'Read-SourceText "scripts/claude-harness-block.md"' "$root/scripts/install-harness.ps1"
 grep -Fq '[switch]$RefreshAgentShim' "$root/scripts/install-harness.ps1"
+grep -Fq '[switch]$Claude' "$root/scripts/install-harness.ps1"
 grep -Fq '$script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.ps1"
 ! grep -Fq 'CliPayloadManifest' "$root/scripts/install-harness.ps1"
 
