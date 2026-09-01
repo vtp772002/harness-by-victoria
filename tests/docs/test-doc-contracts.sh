@@ -16,6 +16,7 @@ require() {
 
 current_files=(
   README.md
+  SECURITY.md
   AGENTS.md
   docs/WORKFLOW.md
   docs/ARCHITECTURE.md
@@ -180,6 +181,8 @@ require scripts/README.md 'claude-skill-install-files.txt'
 require scripts/README.md 'skill-discovery wrappers'
 require docs/product/installation-profiles.md 'skill-discovery wrappers'
 require README.md 'metadata-only trajectory evidence'
+require SECURITY.md 'private Security Advisory'
+require SECURITY.md 'independent publisher-compromise defense'
 require scripts/README.md 'validate-trajectory-evidence.py'
 require docs/README.md 'metadata-only boundary for external agent trajectory evidence'
 require docs/evaluation/trajectory-evidence-v1.md 'repository-harness-trajectory/v1'
