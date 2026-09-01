@@ -149,6 +149,9 @@ Out of scope:
   migration; no Node 20 deprecation warning was emitted by the updated actions.
   Follow-up run `33490034908` passed both jobs on the PowerShell Claude shim
   parity revision, including repeated install/refresh behavior.
+  Run `33492276378` passed both jobs on commit `f5585e6`, including Claude
+  skill-discovery wrapper installation, metadata parity, refresh, and backup
+  coverage.
 - Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
   adding the Claude skill manifest, metadata-drift checks, stale-wrapper
   refresh tests, and release classification coverage.

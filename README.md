@@ -6,8 +6,9 @@ Turn a software repository into a legible, agent-ready workspace with
 `harness-by-victoria`.
 
 This is the standalone `harness-by-victoria` repository: a repository-centered
-Harness distribution maintained and released from this project. It installs a
-small repository protocol and a safe updater.
+Harness distribution maintained here, with its source, installer identity, and
+product documentation owned by this project. It installs a small repository
+protocol and a safe updater.
 The repository remains the system of record: product documents, decisions,
 plans, code, tests, CI, and runtime evidence define the work.
 
