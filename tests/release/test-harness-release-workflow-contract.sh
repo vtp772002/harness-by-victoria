@@ -35,4 +35,11 @@ grep -Fq 'uses: ./.github/workflows/harness-release.yml' "$post_merge"
 grep -Fq 'harness_release_tag="harness-v$new_version"' "$post_merge"
 grep -Fq 'checkout_ref: ${{ needs.prepare.outputs.maintenance_ref }}' "$post_merge"
 
+for workflow in "$release" "$post_merge"; do
+  grep -Fq 'actions/checkout@v7' "$workflow"
+  ! grep -Eq 'actions/(checkout|upload-artifact|download-artifact)@v[1-6]' "$workflow"
+done
+grep -Fq 'actions/upload-artifact@v7' "$release"
+grep -Fq 'actions/download-artifact@v8' "$release"
+
 echo "Harness core five-platform proof-before-promotion workflow contract passed"

@@ -21,7 +21,7 @@ jobs:
     name: Validate repository contract
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
@@ -35,7 +35,7 @@ jobs:
         run: scripts/validate-premerge.sh
       - name: Upload behavior scorecard
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: harness-evaluation-report
           path: harness-evaluation.json
@@ -45,7 +45,7 @@ jobs:
     name: Validate Windows installer contract
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable

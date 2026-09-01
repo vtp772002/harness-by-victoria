@@ -20,7 +20,7 @@ jobs:
       harness_release_tag: ${{ steps.maintenance.outputs.harness_release_tag }}
       maintenance_ref: ${{ steps.maintenance.outputs.maintenance_ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0

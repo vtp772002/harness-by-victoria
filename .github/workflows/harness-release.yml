@@ -34,7 +34,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.checkout_ref }}
           fetch-depth: 0
@@ -79,7 +79,7 @@ jobs:
             runner: windows-latest
             binary: harness-windows-x64.exe
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify.outputs.source_sha }}
           fetch-depth: 0
@@ -119,7 +119,7 @@ jobs:
           dist/${{ matrix.binary }} update --candidate --directory $root --dry-run
           dist/${{ matrix.binary }} status --directory $root
           dist/${{ matrix.binary }} doctor --directory $root
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: harness-core-${{ matrix.platform }}
           path: |
@@ -139,11 +139,11 @@ jobs:
       SOURCE_SHA: ${{ needs.verify.outputs.source_sha }}
       PROOF_RUN: ${{ github.run_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.verify.outputs.source_sha }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: harness-core-*
           merge-multiple: true

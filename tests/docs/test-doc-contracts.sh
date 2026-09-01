@@ -44,6 +44,7 @@ current_files=(
   docs/evaluation/harness-evaluation-v1.md
   docs/evaluation/trajectory-evidence-v1.md
   docs/decisions/0029-metadata-only-external-trajectory-evidence.md
+  docs/decisions/0030-node24-github-actions-runtime.md
   docs/plans/active/world-class-harness.md
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
@@ -147,6 +148,9 @@ require .github/workflows/premerge.yml 'run: scripts/validate-premerge.sh'
 require .github/workflows/premerge.yml 'HARNESS_EVALUATION_REPORT: harness-evaluation.json'
 require .github/workflows/premerge.yml 'name: harness-evaluation-report'
 require .github/workflows/premerge.yml 'if: ${{ always() }}'
+require .github/workflows/premerge.yml 'actions/checkout@v7'
+require .github/workflows/premerge.yml 'actions/upload-artifact@v7'
+require docs/decisions/0030-node24-github-actions-runtime.md 'Node 20 deprecation notice'
 require docs/evaluation/harness-evaluation-v1.md 'final 4096 bytes'
 require scripts/README.md 'bounded failure diagnostics'
 require .github/workflows/premerge.yml 'tests/installer/test-install-harness-modes.ps1'

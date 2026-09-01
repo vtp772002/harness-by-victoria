@@ -113,6 +113,10 @@ Out of scope:
   optional metadata-only external trajectory adapter. The external runner and
   all raw prompts, transcripts, content, tool payloads, credentials, tokens,
   telemetry, and retention remain outside Harness.
+- 2026-09-01: After the first GitHub Actions run exposed Node 20 deprecation
+  warnings, adopt Decision 0030: checkout v7, upload-artifact v7, and
+  download-artifact v8 across workflows; do not alter merge policy or branch
+  protection through this compatibility fix.
 
 ## Validation
 
