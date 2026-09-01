@@ -1,0 +1,6 @@
+# Optional Claude Code skill-discovery compatibility wrappers.
+# The canonical skill bodies remain under .agents/skills/.
+.claude/skills/audit-onboarding-proposal/SKILL.md
+.claude/skills/encode-invariant/SKILL.md
+.claude/skills/improve-harness/SKILL.md
+.claude/skills/onboard-repository/SKILL.md

@@ -31,9 +31,16 @@ installed core. Its contract test is part of pre-merge validation.
 - `harness-install-files.txt`: exact embedded core payload.
 - `engineering-wisdom-install-files.txt`: independent optional advisory
   payload.
+- `claude-skill-install-files.txt`: the four optional Claude Code
+  skill-discovery wrapper paths. Their canonical policy bodies remain under
+  `.agents/skills/`.
+- `claude-engineering-wisdom-shim.md`: the explicit-only Claude discovery
+  wrapper for the engineering-wisdom add-on.
 - `agent-harness-block.md` and `claude-harness-block.md`: managed entrypoint
   shims. `--claude` / `-Claude` enables the Claude Code shim through the Bash
-  / PowerShell bootstrap respectively.
+  / PowerShell bootstrap respectively, including the thin Claude Code
+  skill-discovery wrappers. Marked wrappers refresh with backups during merge; unmarked
+  consumer skill files remain untouched.
 
 The bootstraps require a 64-character hexadecimal SHA-256 sidecar, normalize
 its case, verify the candidate checksum and reported version before delegating

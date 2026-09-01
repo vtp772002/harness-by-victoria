@@ -38,7 +38,7 @@ control plane.
 | Capability | Current evidence in this repository | Assessment |
 | --- | --- | --- |
 | Repository authority and small context | `AGENTS.md`, `docs/WORKFLOW.md`, `docs/README.md`, product/decision/plan maps | Strong |
-| Portable skills and client shims | `.agents/skills/`, optional Claude shim, exact embedded manifest | Strong for current supported clients; broader client adapters are not established |
+| Portable skills and client shims | Canonical `.agents/skills/`, thin `.claude/skills/` discovery wrappers, optional Claude shim, exact installer manifests | Strong for current supported clients; broader client adapters are not established |
 | Human-owned ambiguity boundary | Workflow authority gate and task-authority contract | Strong |
 | Safe maintenance and recovery | Rust transactions, three-way merge, conflict staging, drift detection, rollback, symlink checks | Strong |
 | Release identity and byte integrity | Versioned release pointer, binary version check, SHA-256 sidecar, exact asset inventory | Strong integrity; independent publisher trust root remains explicitly absent |
@@ -80,10 +80,11 @@ is a decision-shaped gap, not permission to guess.
 
 ### P1: Cross-client portability audit
 
-The current product supports the canonical `AGENTS.md` entrypoint and an
-optional Claude shim. Survey additional clients only when their file format,
-precedence, and installation ownership are authoritative; do not scatter
-duplicate instructions that can drift.
+The current product supports the canonical `AGENTS.md` entrypoint, an optional
+Claude shim, and thin Claude Code skill-discovery wrappers that point back to
+the canonical `.agents/skills/` bodies. Survey additional clients only when
+their file format, precedence, and installation ownership are authoritative;
+do not scatter duplicate instructions that can drift.
 
 ### P2: Independent release trust root
 

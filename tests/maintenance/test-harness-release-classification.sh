@@ -17,7 +17,10 @@ positive_paths=(
   docs/templates/application-runbook.md
   docs/templates/harness-improvement.md
   scripts/agent-harness-block.md
+  scripts/claude-engineering-wisdom-shim.md
+  scripts/claude-skill-install-files.txt
   scripts/harness-install-files.txt
+  .claude/skills/encode-invariant/SKILL.md
   scripts/install-harness.sh
   scripts/install-harness.ps1
   scripts/build-harness-release.sh

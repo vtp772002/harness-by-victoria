@@ -87,11 +87,30 @@ try {
     $ClaudeBegin = ([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count
     $ClaudeEnd = ([regex]::Matches($ClaudeText, '<!-- HARNESS:END -->')).Count
     if ($ClaudeBegin -ne 1 -or $ClaudeEnd -ne 1) { throw "PowerShell Claude shim marker count is not idempotent" }
+    foreach ($Skill in @("audit-onboarding-proposal", "encode-invariant", "improve-harness", "onboard-repository")) {
+        $ClaudeSkill = Join-Path $Claude ".claude/skills/$Skill/SKILL.md"
+        if (!(Test-Path $ClaudeSkill)) { throw "PowerShell Claude skill wrapper missing: $Skill" }
+        $ClaudeSkillText = Get-Content -Raw $ClaudeSkill
+        if (!$ClaudeSkillText.Contains(".agents/skills/$Skill/SKILL.md")) { throw "PowerShell Claude skill wrapper is not canonical: $Skill" }
+    }
+    if (Test-Path (Join-Path $Claude ".claude/skills/engineering-wisdom/SKILL.md")) { throw "engineering wisdom was not kept explicit-only" }
     $ClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "CLAUDE.md" -File | Select-Object -First 1
     if (!$ClaudeBackup -or (Get-FileHash -Algorithm SHA256 $ClaudeBackup.FullName).Hash -ne $ClaudeBefore) { throw "PowerShell Claude shim backup does not match prior CLAUDE.md" }
     Invoke-Install $Claude @("Merge", "Claude")
     $ClaudeText = Get-Content -Raw (Join-Path $Claude "CLAUDE.md")
     if (([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count -ne 1) { throw "PowerShell Claude shim is not idempotent" }
+
+    $StaleClaudeSkill = Join-Path $Claude ".claude/skills/encode-invariant/SKILL.md"
+    "# Claude Code compatibility loader`nstale wrapper`n" | Set-Content $StaleClaudeSkill
+    Invoke-Install $Claude @("Merge", "Claude")
+    $RefreshedClaudeSkill = Get-Content -Raw $StaleClaudeSkill
+    if (!$RefreshedClaudeSkill.Contains("canonical skill is") -or $RefreshedClaudeSkill.Contains("stale wrapper")) { throw "PowerShell Claude skill wrapper was not refreshed from the canonical source" }
+    $StaleClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "SKILL.md" -File | Where-Object { $_.FullName -like "*encode-invariant*" } | Select-Object -First 1
+    if (!$StaleClaudeBackup -or !(Get-Content -Raw $StaleClaudeBackup.FullName).Contains("stale wrapper")) { throw "PowerShell Claude skill wrapper backup is missing stale bytes" }
+
+    $ClaudeOptIn = Join-Path $Temp "claude-opt-in"
+    Invoke-Install $ClaudeOptIn @("Claude", "WithEngineeringWisdom")
+    if (!(Test-Path (Join-Path $ClaudeOptIn ".claude/skills/engineering-wisdom/SKILL.md"))) { throw "PowerShell Claude engineering-wisdom wrapper missing after explicit opt-in" }
 
     $MalformedClaude = Join-Path $Temp "malformed-claude"
     New-Item -ItemType Directory -Force $MalformedClaude | Out-Null

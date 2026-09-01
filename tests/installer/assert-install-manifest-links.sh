@@ -4,17 +4,22 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 core_manifest="$root/scripts/harness-install-files.txt"
 wisdom_manifest="$root/scripts/engineering-wisdom-install-files.txt"
+claude_manifest="$root/scripts/claude-skill-install-files.txt"
 temp=$(mktemp -d)
 trap 'rm -rf "$temp"' EXIT
 core="$temp/core"
 wisdom="$temp/wisdom"
+claude="$temp/claude"
 
 [[ "$(grep -Fc 'PAYLOAD_MANIFEST="scripts/harness-install-files.txt"' "$root/scripts/install-harness.sh")" == 1 ]]
 [[ "$(grep -Fc 'ENGINEERING_WISDOM_PAYLOAD_MANIFEST="scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.sh")" == 1 ]]
 [[ "$(grep -Fc '$script:PayloadManifest = "scripts/harness-install-files.txt"' "$root/scripts/install-harness.ps1")" == 1 ]]
 [[ "$(grep -Fc '$script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.ps1")" == 1 ]]
+[[ "$(grep -Fc 'CLAUDE_SKILLS_PAYLOAD_MANIFEST="scripts/claude-skill-install-files.txt"' "$root/scripts/install-harness.sh")" == 1 ]]
+[[ "$(grep -Fc '$script:ClaudeSkillsPayloadManifest = "scripts/claude-skill-install-files.txt"' "$root/scripts/install-harness.ps1")" == 1 ]]
+[[ -f "$root/scripts/claude-engineering-wisdom-shim.md" ]]
 
-python3 - "$root" "$core_manifest" "$wisdom_manifest" <<'PY'
+python3 - "$root" "$core_manifest" "$wisdom_manifest" "$claude_manifest" <<'PY'
 import pathlib
 import sys
 
@@ -37,13 +42,14 @@ PY
 
 HARNESS_CORE_BINARY="$root/target/debug/harness" "$root/scripts/install-harness.sh" --directory "$core" --yes >/dev/null
 HARNESS_CORE_BINARY="$root/target/debug/harness" "$root/scripts/install-harness.sh" --directory "$wisdom" --with-engineering-wisdom --yes >/dev/null
+HARNESS_CORE_BINARY="$root/target/debug/harness" "$root/scripts/install-harness.sh" --directory "$claude" --claude --yes >/dev/null
 
-python3 - "$core" "$wisdom" "$core_manifest" "$wisdom_manifest" <<'PY'
+python3 - "$core" "$wisdom" "$claude" "$core_manifest" "$wisdom_manifest" "$claude_manifest" <<'PY'
 import pathlib
 import re
 import sys
 
-core, wisdom, core_manifest, wisdom_manifest = map(pathlib.Path, sys.argv[1:])
+core, wisdom, claude, core_manifest, wisdom_manifest, claude_manifest = map(pathlib.Path, sys.argv[1:])
 
 def entries(path):
     return {
@@ -64,6 +70,7 @@ runtime = {
 expected_by_root = {
     core: core_expected | runtime,
     wisdom: core_expected | runtime | entries(wisdom_manifest),
+    claude: core_expected | runtime | entries(claude_manifest) | {"CLAUDE.md"},
 }
 pattern = re.compile(r"!?\[[^]]*\]\(([^)]+)\)")
 for install_root, expected in expected_by_root.items():
@@ -95,4 +102,4 @@ for install_root, expected in expected_by_root.items():
         raise SystemExit("\n".join(errors))
 PY
 
-echo "core and engineering-wisdom manifests, exact payloads, and installed links passed"
+echo "core, engineering-wisdom, and Claude manifests, exact payloads, and installed links passed"

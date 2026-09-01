@@ -22,7 +22,8 @@ Options:
       --claude           Also install or refresh CLAUDE.md so Claude Code
                          auto-loads the harness context. Claude Code never
                          auto-loads AGENTS.md; the shim @-imports AGENTS.md
-                         as its single policy source inside a marked block.
+                         as its single policy source inside a marked block
+                         and installs thin skill-discovery wrappers.
                          Existing CLAUDE.md files get the block appended
                          after a backup; a stale block is refreshed in place.
       --override         On protected-path conflict, back up and replace
@@ -241,6 +242,71 @@ agent_shim_block() {
 
 claude_shim_block() {
   read_source_text "scripts/claude-harness-block.md"
+}
+
+copy_source_file_to() {
+  local source_relative="$1"
+  local target_relative="$2"
+  local refresh_marked="${3:-0}"
+  local target="$TARGET_DIR/$target_relative"
+
+  validate_target_components "$target_relative" "Harness path $target_relative"
+
+  if [ -e "$target" ]; then
+    if [ "$refresh_marked" -eq 1 ] &&
+       grep -Fq '# Claude Code compatibility loader' "$target"; then
+      local source_tmp
+      source_tmp="$(mktemp)"
+      write_source_file "$source_relative" "$source_tmp"
+      if cmp -s "$source_tmp" "$target"; then
+        rm -f "$source_tmp"
+        log "skip     $target_relative (Claude wrapper current)"
+        SKIPPED=$((SKIPPED + 1))
+        return
+      fi
+      if [ "$DRY_RUN" -eq 1 ]; then
+        rm -f "$source_tmp"
+        log "update   $target_relative (refresh marked Claude wrapper, backup first)"
+      else
+        local backup="$BACKUP_DIR/$target_relative"
+        mkdir -p "$(dirname "$backup")"
+        cp -p "$target" "$backup"
+        cp -p "$source_tmp" "$target"
+        rm -f "$source_tmp"
+        log "updated  $target_relative (backup: ${backup#$TARGET_DIR/})"
+      fi
+      UPDATED=$((UPDATED + 1))
+      return
+    fi
+    if [ "$CONFLICT_ACTION" = "merge" ]; then
+      log "skip     $target_relative (merge keeps existing file)"
+      SKIPPED=$((SKIPPED + 1))
+    elif [ "$FORCE" -eq 1 ]; then
+      if [ "$DRY_RUN" -eq 1 ]; then
+        log "overwrite $target_relative (backup first)"
+      else
+        local backup="$BACKUP_DIR/$target_relative"
+        mkdir -p "$(dirname "$backup")"
+        cp -p "$target" "$backup"
+        write_source_file "$source_relative" "$target"
+        log "updated  $target_relative (backup: ${backup#$TARGET_DIR/})"
+      fi
+      UPDATED=$((UPDATED + 1))
+    else
+      log "skip     $target_relative (already exists)"
+      SKIPPED=$((SKIPPED + 1))
+    fi
+    return
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "create   $target_relative"
+  else
+    mkdir -p "$(dirname "$target")"
+    write_source_file "$source_relative" "$target"
+    log "created  $target_relative"
+  fi
+  CREATED=$((CREATED + 1))
 }
 
 is_old_harness_agent_file() {
@@ -497,6 +563,28 @@ write_claude_shim() {
     CREATED=$((CREATED + 1))
   fi
   rm -f "$block_tmp"
+}
+
+install_claude_skills() {
+  [ "$INSTALL_CLAUDE_SHIM" -eq 1 ] || return 0
+
+  local manifest relative
+  manifest="$(read_payload_manifest "$CLAUDE_SKILLS_PAYLOAD_MANIFEST")"
+  while IFS= read -r relative || [ -n "$relative" ]; do
+    relative="${relative%$'\r'}"
+    case "$relative" in
+      ""|\#*) continue ;;
+    esac
+    copy_source_file_to "$relative" "$relative" 1
+  done <<EOF
+$manifest
+EOF
+  if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
+    copy_source_file_to \
+      "scripts/claude-engineering-wisdom-shim.md" \
+      ".claude/skills/engineering-wisdom/SKILL.md" \
+      1
+  fi
 }
 
 detect_cli_platform() {
@@ -872,6 +960,7 @@ CORE_SOURCE_BASE_URL="${HARNESS_CORE_SOURCE_BASE_URL:-https://raw.githubusercont
 CORE_SOURCE_BASE_URL="${CORE_SOURCE_BASE_URL%/}"
 PAYLOAD_MANIFEST="scripts/harness-install-files.txt"
 ENGINEERING_WISDOM_PAYLOAD_MANIFEST="scripts/engineering-wisdom-install-files.txt"
+CLAUDE_SKILLS_PAYLOAD_MANIFEST="scripts/claude-skill-install-files.txt"
 
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DIR/../docs/HARNESS.md" ]; then
   SOURCE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
@@ -935,6 +1024,7 @@ install_harness_core
 install_engineering_wisdom
 refresh_agent_shim
 write_claude_shim
+install_claude_skills
 
 log ""
 log "Done. Created: $CREATED, updated: $UPDATED, skipped: $SKIPPED."

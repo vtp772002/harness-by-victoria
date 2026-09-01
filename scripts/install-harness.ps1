@@ -312,6 +312,79 @@ function Write-ClaudeShim {
     }
 }
 
+function Copy-SourceFileTo([string]$SourceRelative, [string]$TargetRelative, [bool]$RefreshMarked = $false) {
+    $target = Join-Path $script:TargetDir $TargetRelative
+    Assert-NoReparseComponents $TargetRelative "Harness path $TargetRelative"
+    $targetItem = Get-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
+
+    if ($null -ne $targetItem) {
+        if ($RefreshMarked -and !$targetItem.PSIsContainer -and ((Get-Content -LiteralPath $target -Raw) -like "*# Claude Code compatibility loader*")) {
+            $sourceTemp = Join-Path ([System.IO.Path]::GetTempPath()) ("harness-source-" + [guid]::NewGuid().ToString("N"))
+            try {
+                Write-SourceFile $SourceRelative $sourceTemp
+                if ((Get-FileHash -Algorithm SHA256 $sourceTemp).Hash -eq (Get-FileHash -Algorithm SHA256 $target).Hash) {
+                    Write-Step "skip     $TargetRelative (Claude wrapper current)"
+                    $script:Skipped++
+                    return
+                }
+                if ($DryRun) {
+                    Write-Step "update   $TargetRelative (refresh marked Claude wrapper, backup first)"
+                } else {
+                    $backup = Join-Path $script:BackupDir $TargetRelative
+                    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
+                    Copy-Item -LiteralPath $target -Destination $backup -Force
+                    Copy-Item -LiteralPath $sourceTemp -Destination $target -Force
+                    Write-Step "updated  $TargetRelative (backup: $($backup.Substring($script:TargetDir.Length + 1)))"
+                }
+                $script:Updated++
+                return
+            } finally {
+                Remove-Item -LiteralPath $sourceTemp -Force -ErrorAction SilentlyContinue
+            }
+        }
+        if ($script:ConflictAction -eq "merge") {
+            Write-Step "skip     $TargetRelative (merge keeps existing file)"
+            $script:Skipped++
+        } elseif ($Force) {
+            if ($DryRun) {
+                Write-Step "overwrite $TargetRelative (backup first)"
+            } else {
+                $backup = Join-Path $script:BackupDir $TargetRelative
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
+                Copy-Item -LiteralPath $target -Destination $backup -Force
+                Write-SourceFile $SourceRelative $target
+                Write-Step "updated  $TargetRelative (backup: $($backup.Substring($script:TargetDir.Length + 1)))"
+            }
+            $script:Updated++
+        } else {
+            Write-Step "skip     $TargetRelative (already exists)"
+            $script:Skipped++
+        }
+        return
+    }
+
+    if ($DryRun) {
+        Write-Step "create   $TargetRelative"
+    } else {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+        Write-SourceFile $SourceRelative $target
+        Write-Step "created  $TargetRelative"
+    }
+    $script:Created++
+}
+
+function Install-ClaudeSkills {
+    if (!$Claude) {
+        return
+    }
+    foreach ($file in (Get-PayloadFiles $script:ClaudeSkillsPayloadManifest)) {
+        Copy-SourceFileTo $file $file $true
+    }
+    if ($WithEngineeringWisdom) {
+        Copy-SourceFileTo "scripts/claude-engineering-wisdom-shim.md" ".claude/skills/engineering-wisdom/SKILL.md" $true
+    }
+}
+
 function Get-HarnessReleaseTag {
     if ($env:HARNESS_CORE_RELEASE_TAG) { return $env:HARNESS_CORE_RELEASE_TAG.Trim() }
     if ($script:Source.Mode -eq "local") {
@@ -468,6 +541,7 @@ $script:SourceBaseUrl = if ($env:HARNESS_SOURCE_BASE_URL) { $env:HARNESS_SOURCE_
 $script:CoreSourceBaseUrl = if ($env:HARNESS_CORE_SOURCE_BASE_URL) { $env:HARNESS_CORE_SOURCE_BASE_URL.TrimEnd("/") } else { "https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main" }
 $script:PayloadManifest = "scripts/harness-install-files.txt"
 $script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"
+$script:ClaudeSkillsPayloadManifest = "scripts/claude-skill-install-files.txt"
 $script:TargetDir = Resolve-TargetPath $Directory
 $backupRelative = ".harness-backup/" + [guid]::NewGuid().ToString("N")
 $script:BackupDir = Join-Path $script:TargetDir $backupRelative
@@ -549,6 +623,7 @@ Install-HarnessCore
 Install-EngineeringWisdom
 Refresh-AgentShimFile
 Write-ClaudeShim
+Install-ClaudeSkills
 
 Write-Step ""
 Write-Step "Done. Created: $script:Created, updated: $script:Updated, skipped: $script:Skipped."

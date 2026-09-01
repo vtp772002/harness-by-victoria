@@ -121,8 +121,25 @@ install --directory "$claude" --claude --yes >"$temp/claude.out"
 grep -Fq 'Keep this Claude-only rule.' "$claude/CLAUDE.md"
 cmp -s <(extract_block "$claude/CLAUDE.md") "$root/scripts/claude-harness-block.md"
 [[ "$(grep -Fc '@AGENTS.md' "$claude/CLAUDE.md")" == 1 ]]
+for skill in audit-onboarding-proposal encode-invariant improve-harness onboard-repository; do
+  shim="$claude/.claude/skills/$skill/SKILL.md"
+  [[ -f "$shim" ]]
+  grep -Fq "canonical skill is" "$shim"
+  grep -Fq ".agents/skills/$skill/SKILL.md" "$shim"
+done
+[[ ! -e "$claude/.claude/skills/engineering-wisdom/SKILL.md" ]]
 claude_backup=$(find "$claude/.harness-backup" -name CLAUDE.md -type f | head -n 1)
 [[ "$(shasum -a 256 "$claude_backup" | awk '{ print $1 }')" == "$claude_before" ]]
+
+# A marked Claude wrapper is Harness-owned and can be refreshed during merge;
+# the stale bytes remain recoverable in the per-run backup.
+stale_wrapper="$claude/.claude/skills/encode-invariant/SKILL.md"
+printf '# Claude Code compatibility loader\nstale wrapper\n' >"$stale_wrapper"
+install --directory "$claude" --claude --merge --yes >"$temp/claude-refresh.out"
+grep -Fq 'canonical skill is' "$stale_wrapper"
+! grep -Fq 'stale wrapper' "$stale_wrapper"
+stale_wrapper_backup=$(find "$claude/.harness-backup" -path '*/.claude/skills/encode-invariant/SKILL.md' -type f | head -n 1)
+grep -Fxq 'stale wrapper' "$stale_wrapper_backup"
 
 # Merge fills missing core files but never deletes or rewrites legacy protocol
 # files, a pre-existing database, or unrelated scripts.

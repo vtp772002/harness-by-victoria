@@ -33,6 +33,49 @@ for text in "${required_agent_text[@]}"; do
   grep -Fq "$text" "$agent_block"
 done
 
+claude_skill_payloads=(
+  .claude/skills/audit-onboarding-proposal/SKILL.md
+  .claude/skills/encode-invariant/SKILL.md
+  .claude/skills/improve-harness/SKILL.md
+  .claude/skills/onboard-repository/SKILL.md
+)
+for payload in "${claude_skill_payloads[@]}"; do
+  grep -Fxq "$payload" "$root/scripts/claude-skill-install-files.txt"
+  grep -Fq 'canonical skill is' "$root/$payload"
+done
+! grep -Fq '.claude/skills/' "$root/scripts/harness-install-files.txt"
+python3 - "$root" <<'PY'
+import pathlib
+import re
+import sys
+
+root = pathlib.Path(sys.argv[1])
+skills = [
+    "audit-onboarding-proposal",
+    "encode-invariant",
+    "improve-harness",
+    "onboard-repository",
+]
+
+def frontmatter(path):
+    text = path.read_text()
+    match = re.match(r"\A---\n(.*?)\n---\n", text, re.S)
+    if not match:
+        raise SystemExit(f"missing skill frontmatter: {path}")
+    return match.group(1)
+
+for skill in skills:
+    canonical = frontmatter(root / ".agents/skills" / skill / "SKILL.md")
+    wrapper = frontmatter(root / ".claude/skills" / skill / "SKILL.md")
+    if canonical != wrapper:
+        raise SystemExit(f"Claude wrapper metadata drifted from canonical skill: {skill}")
+
+canonical = frontmatter(root / ".agents/skills/engineering-wisdom/SKILL.md")
+wrapper = frontmatter(root / "scripts/claude-engineering-wisdom-shim.md")
+if canonical != wrapper:
+    raise SystemExit("Claude engineering-wisdom wrapper metadata drifted from canonical skill")
+PY
+
 [[ "$(wc -c <"$agent_block" | tr -d ' ')" -le 1600 ]]
 entry_words=$(awk '{ words += NF } END { print words }' "$agent_block" "$workflow")
 [[ "$entry_words" -le 1000 ]]
@@ -135,6 +178,9 @@ grep -Fq 'read_source_text "scripts/agent-harness-block.md"' "$root/scripts/inst
 grep -Fq 'read_source_text "scripts/claude-harness-block.md"' "$root/scripts/install-harness.sh"
 grep -Fq 'REFRESH_AGENT_SHIM=1' "$root/scripts/install-harness.sh"
 grep -Fq 'ENGINEERING_WISDOM_PAYLOAD_MANIFEST="scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.sh"
+grep -Fq 'CLAUDE_SKILLS_PAYLOAD_MANIFEST="scripts/claude-skill-install-files.txt"' "$root/scripts/install-harness.sh"
+grep -Fq 'install_claude_skills' "$root/scripts/install-harness.sh"
+grep -Fq 'scripts/claude-engineering-wisdom-shim.md' "$root/scripts/install-harness.sh"
 ! grep -Fq 'CLI_PAYLOAD_MANIFEST' "$root/scripts/install-harness.sh"
 
 grep -Fq 'Read-SourceText "scripts/agent-harness-block.md"' "$root/scripts/install-harness.ps1"
@@ -142,6 +188,9 @@ grep -Fq 'Read-SourceText "scripts/claude-harness-block.md"' "$root/scripts/inst
 grep -Fq '[switch]$RefreshAgentShim' "$root/scripts/install-harness.ps1"
 grep -Fq '[switch]$Claude' "$root/scripts/install-harness.ps1"
 grep -Fq '$script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.ps1"
+grep -Fq '$script:ClaudeSkillsPayloadManifest = "scripts/claude-skill-install-files.txt"' "$root/scripts/install-harness.ps1"
+grep -Fq 'Install-ClaudeSkills' "$root/scripts/install-harness.ps1"
+grep -Fq 'scripts/claude-engineering-wisdom-shim.md' "$root/scripts/install-harness.ps1"
 ! grep -Fq 'CliPayloadManifest' "$root/scripts/install-harness.ps1"
 
 echo "repository authority, bounded context, canonical shims, and core-only installer parity passed"

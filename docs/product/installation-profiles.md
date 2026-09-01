@@ -15,7 +15,15 @@ The platform bootstrap installs a checksum-verified `harness` binary under
 The Bash `--claude` and PowerShell `-Claude` options install or refresh the
 optional Claude Code shim. The shim imports the canonical `AGENTS.md` source,
 preserves local Claude-only rules, backs up replacement bytes, and uses the
-same marked block contract on both platforms.
+same marked block contract on both platforms. They also install four thin
+Claude Code skill-discovery wrappers from
+`scripts/claude-skill-install-files.txt`; the canonical skill bodies stay under
+`.agents/skills/`. The engineering-wisdom wrapper is available only when both
+Claude and engineering-wisdom are explicitly selected.
+
+The wrappers are marked as managed compatibility loaders. Merge refreshes a
+stale marked wrapper after backing up its prior bytes, while an unmarked
+consumer skill remains untouched.
 
 Core installation:
 

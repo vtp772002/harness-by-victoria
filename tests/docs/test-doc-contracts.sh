@@ -50,6 +50,12 @@ current_files=(
   scripts/validate-trajectory-evidence.py
   tests/evaluation/test-harness-evaluator.sh
   tests/evaluation/test-trajectory-evidence.sh
+  scripts/claude-skill-install-files.txt
+  scripts/claude-engineering-wisdom-shim.md
+  .claude/skills/audit-onboarding-proposal/SKILL.md
+  .claude/skills/encode-invariant/SKILL.md
+  .claude/skills/improve-harness/SKILL.md
+  .claude/skills/onboard-repository/SKILL.md
   .github/ISSUE_TEMPLATE/real-world-example.md
 )
 for file in "${current_files[@]}"; do
@@ -82,6 +88,8 @@ require README.md '## Evaluate Harness'
 require README.md '## Protocol V1 End Of Life'
 require README.md '--claude'
 require README.md '-Claude'
+require README.md '.claude/skills/'
+require README.md 'canonical skill bodies'
 require docs/research/application-legibility.md 'research, not a release gate'
 require docs/decisions/0027-end-protocol-v1-and-focus-repository-protocol.md '`harness-cli-v0.1.22`'
 require .github/ISSUE_TEMPLATE/real-world-example.md '`docs/WORKFLOW.md`'
@@ -162,6 +170,9 @@ require scripts/README.md 'optional payloads,'
 require scripts/README.md 'agent shims'
 require scripts/README.md '`--claude`'
 require scripts/README.md '`-Claude`'
+require scripts/README.md 'claude-skill-install-files.txt'
+require scripts/README.md 'skill-discovery wrappers'
+require docs/product/installation-profiles.md 'skill-discovery wrappers'
 require README.md 'metadata-only trajectory evidence'
 require scripts/README.md 'validate-trajectory-evidence.py'
 require docs/README.md 'metadata-only boundary for external agent trajectory evidence'

@@ -102,6 +102,9 @@ Out of scope:
       the hosted Linux and Windows jobs on the personal repository.
 - [x] Close the Bash/PowerShell Claude Code shim parity gap using the canonical
       marked-block, preservation, backup, and idempotence contract.
+- [x] Add optional Claude Code skill-discovery wrappers while keeping
+      `.agents/skills/` as the single canonical policy source; refresh marked
+      wrappers safely with backups on both installers.
 - [x] Run full validation and record measured limits for this phase.
 
 ## Decisions
@@ -117,6 +120,10 @@ Out of scope:
   optional metadata-only external trajectory adapter. The external runner and
   all raw prompts, transcripts, content, tool payloads, credentials, tokens,
   telemetry, and retention remain outside Harness.
+- 2026-09-01: Keep `.agents/skills/` canonical and add thin `.claude/skills/`
+  discovery wrappers because Claude Code and Cursor use different documented
+  skill roots. Install the wrappers only with `--claude` / `-Claude`; expose
+  the engineering-wisdom wrapper only with both explicit add-on selections.
 - 2026-09-01: After the first GitHub Actions run exposed Node 20 deprecation
   warnings, adopt Decision 0030: checkout v7, upload-artifact v7, and
   download-artifact v8 across workflows; do not alter merge policy or branch
@@ -134,11 +141,17 @@ Out of scope:
 - Cross-client proof: Bash and PowerShell now expose equivalent Claude Code shim
   installation paths; the PowerShell contract covers preservation, backup,
   idempotence, and malformed-marker rejection.
+- Cross-client skill proof: Bash and PowerShell consume the same Claude wrapper
+  manifest, preserve unmarked consumer skills, refresh marked wrappers with
+  backups, and keep engineering-wisdom discovery explicit-only.
 - Hosted CI proof: run `33488461227` passed both the repository contract on
   Ubuntu and the PowerShell installer contract on Windows after the action
   migration; no Node 20 deprecation warning was emitted by the updated actions.
   Follow-up run `33490034908` passed both jobs on the PowerShell Claude shim
   parity revision, including repeated install/refresh behavior.
+- Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
+  adding the Claude skill manifest, metadata-drift checks, stale-wrapper
+  refresh tests, and release classification coverage.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result
