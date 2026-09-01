@@ -1,0 +1,19 @@
+{
+  "schema": "repository-harness-trajectory/v1",
+  "privacy": {
+    "mode": "metadata_only",
+    "payloads_redacted": true
+  },
+  "run": {
+    "run_id": "run-invalid-002",
+    "repository_revision": "0123456789abcdef0123456789abcdef01234567",
+    "client": "fixture-runner",
+    "stdout": "must-not-be-recorded"
+  },
+  "events": [],
+  "outcome": {
+    "status": "stopped_for_authority",
+    "changed": false,
+    "proof_refs": []
+  }
+}

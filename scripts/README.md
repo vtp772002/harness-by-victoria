@@ -6,6 +6,23 @@ The normal validation entrypoint is:
 scripts/validate-premerge.sh
 ```
 
+The claim-matched behavior scorecard is available independently:
+
+```bash
+scripts/evaluate-harness.sh
+```
+
+It emits `repository-harness-evaluation/v1` JSON for six deterministic
+Harness-owned checks, including explicit `not_evaluated` boundaries,
+reproduction metadata, and bounded failure diagnostics. It does not run an
+LLM, persist task state, measure a consumer application, or claim host-agent
+telemetry.
+
+External trajectory evidence is validated separately with
+`validate-trajectory-evidence.py`. The adapter is metadata-only, versioned,
+fail-closed on forbidden payloads, and intentionally excluded from the
+installed core. Its contract test is part of pre-merge validation.
+
 ## Installation
 
 - `install-harness.sh`: Bash bootstrap for the versioned Rust `harness`
@@ -17,8 +34,12 @@ scripts/validate-premerge.sh
 - `agent-harness-block.md` and `claude-harness-block.md`: managed entrypoint
   shims.
 
-The bootstraps verify candidate checksum and reported version before delegating
-install or update. They do not contain a database or compatibility profile.
+The bootstraps require a 64-character hexadecimal SHA-256 sidecar, normalize
+its case, verify the candidate checksum and reported version before delegating
+install or update. Before bootstrap-managed writes, they reject symlink or
+reparse-point traversal in managed target paths, including optional payloads,
+agent shims, and `.gitignore`. They do not contain a database or compatibility
+profile.
 
 ## Core Release
 

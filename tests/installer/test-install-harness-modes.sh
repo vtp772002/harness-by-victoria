@@ -88,6 +88,21 @@ grep -Fq 'Engineering wisdom: included (explicit opt-in)' "$temp/wisdom.out"
 grep -Fq 'allow_implicit_invocation: false' \
   "$wisdom/.agents/skills/engineering-wisdom/agents/openai.yaml"
 
+# Broken symlinks are still filesystem objects. The optional payload must fail
+# closed instead of treating one as a missing file and following it on write.
+broken_payload="$temp/broken-payload"
+broken_sink="$temp/broken-payload-sink"
+mkdir -p "$broken_payload/.agents/skills/engineering-wisdom" "$broken_sink"
+ln -s "$broken_sink/skill.md" \
+  "$broken_payload/.agents/skills/engineering-wisdom/SKILL.md"
+if install --directory "$broken_payload" --with-engineering-wisdom --yes >"$temp/broken-payload.out" 2>&1; then
+  echo 'installer unexpectedly followed a broken payload symlink' >&2
+  exit 1
+fi
+grep -Fq 'refusing symlink for Harness path .agents/skills/engineering-wisdom/SKILL.md' \
+  "$temp/broken-payload.out"
+[[ ! -e "$broken_sink/skill.md" ]]
+
 # Force still overwrites an opted-in advisory file and backs up its old bytes.
 force="$temp/force"
 mkdir -p "$force/.agents/skills/engineering-wisdom"
@@ -190,6 +205,31 @@ fi
 grep -Fq 'refusing symlink for repository scripts directory' "$temp/symlink.out"
 [[ -z "$(find "$symlink_sink" -mindepth 1 -print -quit)" ]]
 
+# A broken protected-path symlink must fail before any bootstrap write.
+broken_protected="$temp/broken-protected"
+broken_protected_sink="$temp/broken-protected-sink"
+mkdir -p "$broken_protected" "$broken_protected_sink"
+ln -s "$broken_protected_sink/agents.md" "$broken_protected/AGENTS.md"
+if install --directory "$broken_protected" --yes >"$temp/broken-protected.out" 2>&1; then
+  echo 'installer unexpectedly accepted a broken protected-path symlink' >&2
+  exit 1
+fi
+grep -Fq 'refusing symlink for AGENTS.md' "$temp/broken-protected.out"
+[[ ! -e "$broken_protected_sink/agents.md" ]]
+
+# The backup root is also installer-owned. A symlink there must not redirect
+# backups outside the target repository.
+backup_symlink="$temp/backup-symlink"
+backup_sink="$temp/backup-sink"
+mkdir -p "$backup_symlink" "$backup_sink"
+ln -s "$backup_sink" "$backup_symlink/.harness-backup"
+if install --directory "$backup_symlink" --yes >"$temp/backup-symlink.out" 2>&1; then
+  echo 'installer unexpectedly followed a backup-root symlink' >&2
+  exit 1
+fi
+grep -Fq 'refusing symlink for Harness backup directory' "$temp/backup-symlink.out"
+[[ -z "$(find "$backup_sink" -mindepth 1 -print -quit)" ]]
+
 # Remote bootstrap verifies the core checksum and release/binary version tuple.
 remote_installer="$temp/install-harness.sh"
 cp "$installer" "$remote_installer"
@@ -198,7 +238,7 @@ core_assets="$temp/core-assets"
 mkdir -p "$core_source/scripts" "$core_assets"
 printf 'harness-v%s\n' "$harness_core_version" >"$core_source/scripts/harness-release-tag"
 cp "$harness_core_binary" "$core_assets/harness-fixture-core"
-(cd "$core_assets" && shasum -a 256 harness-fixture-core >harness-fixture-core.sha256)
+(cd "$core_assets" && shasum -a 256 harness-fixture-core | tr '[:lower:]' '[:upper:]' >harness-fixture-core.sha256)
 remote="$temp/remote"
 HARNESS_SOURCE_BASE_URL="file://$root" \
 HARNESS_CORE_SOURCE_BASE_URL="file://$core_source" \
@@ -219,7 +259,7 @@ if HARNESS_SOURCE_BASE_URL="file://$root" \
   echo 'installer unexpectedly accepted a bad core checksum' >&2
   exit 1
 fi
-grep -Fq 'Checksum mismatch for harness-fixture-core' "$temp/bad-checksum.out"
+grep -Fq 'Invalid SHA-256 checksum for harness-fixture-core' "$temp/bad-checksum.out"
 
 mismatch_assets="$temp/mismatch-assets"
 mkdir -p "$mismatch_assets"

@@ -21,6 +21,7 @@ The normal entrypoint is `scripts/validate-premerge.sh`.
 | --- | --- |
 | `tests/workflow/` | Read-only, bounded, durable-plan, authority-stop, and no-hidden-control-plane behavior |
 | `tests/installer/` | Fresh core installation, merge/override, shims, optional engineering advice, manifest integrity, and platform parity |
+| `tests/evaluation/` | Claim-matched behavior scorecard plus metadata-only external trajectory evidence |
 | `tests/docs/` | Current authority, links, EOL boundary, and validation entrypoints |
 | `tests/maintenance/` | Core release classification and changelog rendering |
 | `tests/release/` | Core workflow, exact assets, source identity, promotion, and post-merge recovery |

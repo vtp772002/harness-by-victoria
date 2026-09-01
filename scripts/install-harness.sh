@@ -107,9 +107,26 @@ make_absolute_parent() {
   (cd "$parent" && printf '%s/%s\n' "$(pwd -P)" "$(basename "$path")")
 }
 
+validate_target_components() {
+  local relative="$1"
+  local label="$2"
+  local current="$TARGET_DIR"
+  local component
+  local components=()
+
+  IFS='/' read -r -a components <<<"$relative"
+  for component in "${components[@]}"; do
+    [ -n "$component" ] || continue
+    current="$current/$component"
+    [ ! -L "$current" ] || fail "refusing symlink for $label"
+  done
+}
+
 copy_file() {
   local relative="$1"
   local target="$TARGET_DIR/$relative"
+
+  validate_target_components "$relative" "Harness path $relative"
 
   if [ -e "$target" ]; then
     if [ "$SOURCE_MODE" = "local" ] && [ "$SOURCE_ROOT/$relative" -ef "$target" ]; then
@@ -347,6 +364,7 @@ refresh_agent_shim() {
   [ "$REFRESH_AGENT_SHIM" -eq 1 ] || return 0
 
   local target="$TARGET_DIR/AGENTS.md"
+  validate_target_components "AGENTS.md" "AGENTS.md"
   [ -e "$target" ] || return 0
 
   if [ "$SOURCE_MODE" = "local" ] && [ "$SOURCE_ROOT/AGENTS.md" -ef "$target" ]; then
@@ -396,6 +414,8 @@ write_claude_shim() {
 
   local target="$TARGET_DIR/CLAUDE.md"
   local block_tmp tmp
+
+  validate_target_components "CLAUDE.md" "CLAUDE.md"
 
   if [ "$SOURCE_MODE" = "local" ] && [ -e "$target" ] &&
      [ "$SOURCE_ROOT/CLAUDE.md" -ef "$target" ]; then
@@ -506,6 +526,13 @@ sha256_file() {
   fi
 }
 
+validate_sha256_digest() {
+  local digest="$1"
+  local artifact="$2"
+  [[ "$digest" =~ ^[0-9a-fA-F]{64}$ ]] ||
+    fail "Invalid SHA-256 checksum for $artifact: expected a 64-character hexadecimal digest"
+}
+
 download_file() {
   local url="$1"
   local target="$2"
@@ -539,6 +566,7 @@ merge_core_gitignore() {
   local marker="# Harness core maintenance binary"
   local unix_rule="scripts/bin/harness"
   local windows_rule="scripts/bin/harness.exe"
+  validate_target_components ".gitignore" ".gitignore"
   if [ -f "$target" ] && grep -Fxq "$unix_rule" "$target" && grep -Fxq "$windows_rule" "$target"; then
     log "skip     .gitignore (Harness core binary rules already present)"
     return
@@ -585,9 +613,10 @@ stage_harness_core_cli() {
     checksum_tmp="$CORE_STAGE_ROOT/$CORE_BINARY_NAME.sha256"
     download_file "$binary_url" "$CORE_STAGED_BINARY"
     download_file "$checksum_url" "$checksum_tmp"
-    expected="$(awk '{ print $1; exit }' "$checksum_tmp")"
+    expected="$(awk '{ print $1; exit }' "$checksum_tmp" | tr '[:upper:]' '[:lower:]')"
+    validate_sha256_digest "$expected" "$CORE_BINARY_NAME"
     actual="$(sha256_file "$CORE_STAGED_BINARY")"
-    [ -n "$expected" ] && [ "$expected" = "$actual" ] ||
+    [ "$expected" = "$actual" ] ||
       fail "Checksum mismatch for $CORE_BINARY_NAME: expected $expected, got $actual"
     local reported_version
     chmod 755 "$CORE_STAGED_BINARY"
@@ -615,11 +644,12 @@ install_harness_core() {
   local binary_target="" binary_temp=""
   if [ "$DRY_RUN" -eq 0 ]; then
     binary_target="$TARGET_DIR/scripts/bin/harness"
-    binary_temp="$TARGET_DIR/scripts/bin/.harness.$$.tmp"
     [ ! -L "$TARGET_DIR/scripts" ] || fail "refusing symlink for repository scripts directory"
     [ ! -L "$TARGET_DIR/scripts/bin" ] || fail "refusing symlink for repository scripts/bin directory"
     [ ! -L "$binary_target" ] || fail "refusing symlink for repository Harness executable"
     mkdir -p "$(dirname "$binary_target")"
+    binary_temp="$(mktemp "$TARGET_DIR/scripts/bin/.harness.XXXXXX.tmp")" ||
+      fail "could not create a private temporary Harness executable"
     cp "$CORE_STAGED_BINARY" "$binary_temp"
     chmod 755 "$binary_temp"
     if [ -e "$binary_target" ]; then
@@ -658,6 +688,9 @@ install_harness_core() {
 
 check_protected_target_paths() {
   local conflicts=()
+
+  [ ! -L "$TARGET_DIR/AGENTS.md" ] || fail "refusing symlink for AGENTS.md"
+  [ ! -L "$TARGET_DIR/docs" ] || fail "refusing symlink for docs directory"
 
   [ -e "$TARGET_DIR/AGENTS.md" ] && conflicts+=("AGENTS.md")
   [ -e "$TARGET_DIR/docs" ] && conflicts+=("docs/")
@@ -854,7 +887,9 @@ if [ "$YES" -eq 0 ] && can_prompt; then
 fi
 
 TARGET_DIR="$(make_absolute_parent "$(expand_path "$TARGET_INPUT")")"
-BACKUP_DIR="$TARGET_DIR/.harness-backup/$(date +%Y%m%d%H%M%S)"
+BACKUP_RELATIVE=".harness-backup/$(date +%Y%m%d%H%M%S)-$$"
+BACKUP_DIR="$TARGET_DIR/$BACKUP_RELATIVE"
+validate_target_components "$BACKUP_RELATIVE" "Harness backup directory"
 CREATED=0
 UPDATED=0
 SKIPPED=0

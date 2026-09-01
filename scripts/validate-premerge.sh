@@ -4,7 +4,7 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
 
-for command in cargo git jq rg; do
+for command in cargo git jq python3 rg; do
   command -v "$command" >/dev/null 2>&1 || {
     echo "pre-merge validation requires: $command" >&2
     exit 1
@@ -23,6 +23,8 @@ tests/installer/assert-agent-authority-contract.sh
 tests/installer/assert-install-manifest-links.sh
 tests/installer/test-install-harness-modes.sh
 tests/installer/test-engineering-wisdom-opt-in.sh
+tests/evaluation/test-trajectory-evidence.sh
+tests/evaluation/test-harness-evaluator.sh
 tests/docs/test-doc-contracts.sh
 tests/workflow/test-repository-workflow.sh
 tests/workflow/test-task-authority.sh

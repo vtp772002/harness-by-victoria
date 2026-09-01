@@ -192,7 +192,7 @@ try {
     $CoreAsset = Join-Path $CoreAssets "harness-windows-x64.exe"
     Copy-Item $env:HARNESS_CORE_BINARY $CoreAsset
     $CoreHash = (Get-FileHash -Algorithm SHA256 $CoreAsset).Hash.ToLowerInvariant()
-    "$CoreHash  harness-windows-x64.exe" | Set-Content -Encoding ascii "$CoreAsset.sha256"
+    "$($CoreHash.ToUpperInvariant())  harness-windows-x64.exe" | Set-Content -Encoding ascii "$CoreAsset.sha256"
     Remove-Item Env:HARNESS_CORE_BINARY
     $env:HARNESS_SOURCE_BASE_URL = ([uri]$Root).AbsoluteUri.TrimEnd("/")
     $env:HARNESS_CORE_SOURCE_BASE_URL = ([uri](Resolve-Path $CoreSource).Path).AbsoluteUri.TrimEnd("/")
@@ -207,7 +207,7 @@ try {
         & $RemoteInstaller -Directory (Join-Path $Temp "bad-checksum") -Yes | Out-Null
         $AcceptedChecksum = $true
     } catch {
-        if (!$_.Exception.Message.Contains("Checksum mismatch for harness-windows-x64.exe")) { throw }
+        if (!$_.Exception.Message.Contains("Invalid SHA-256 checksum for harness-windows-x64.exe")) { throw }
     }
     if ($AcceptedChecksum) { throw "installer unexpectedly accepted a bad core checksum" }
 

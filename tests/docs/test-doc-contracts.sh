@@ -40,6 +40,15 @@ current_files=(
   docs/decisions/0027-end-protocol-v1-and-focus-repository-protocol.md
   docs/decisions/0028-authoritative-invariant-encoding.md
   docs/research/application-legibility.md
+  docs/research/agent-harness-landscape.md
+  docs/evaluation/harness-evaluation-v1.md
+  docs/evaluation/trajectory-evidence-v1.md
+  docs/decisions/0029-metadata-only-external-trajectory-evidence.md
+  docs/plans/active/world-class-harness.md
+  scripts/evaluate-harness.sh
+  scripts/validate-trajectory-evidence.py
+  tests/evaluation/test-harness-evaluator.sh
+  tests/evaluation/test-trajectory-evidence.sh
   .github/ISSUE_TEMPLATE/real-world-example.md
 )
 for file in "${current_files[@]}"; do
@@ -68,6 +77,7 @@ require docs/patterns/encoding-invariants.md '| Branch protection |'
 require docs/decisions/0028-authoritative-invariant-encoding.md 'Matching requests may invoke it implicitly'
 require docs/ARCHITECTURE.md 'one Rust binary'
 require README.md '## What We Prove'
+require README.md '## Evaluate Harness'
 require README.md '## Protocol V1 End Of Life'
 require docs/research/application-legibility.md 'research, not a release gate'
 require docs/decisions/0027-end-protocol-v1-and-focus-repository-protocol.md '`harness-cli-v0.1.22`'
@@ -108,6 +118,10 @@ executables=(
   tests/workflow/test-repository-workflow.sh
   tests/workflow/test-task-authority.sh
   tests/installer/test-install-harness-modes.sh
+  scripts/evaluate-harness.sh
+  scripts/validate-trajectory-evidence.py
+  tests/evaluation/test-harness-evaluator.sh
+  tests/evaluation/test-trajectory-evidence.sh
 )
 for executable in "${executables[@]}"; do
   [[ -x "$root/$executable" ]] || fail "documented gate is not executable: $executable"
@@ -118,6 +132,8 @@ required_gates=(
   'cargo test --workspace --locked'
   'cargo clippy --workspace --all-targets --locked -- -D warnings'
   'tests/installer/test-install-harness-modes.sh'
+  'tests/evaluation/test-harness-evaluator.sh'
+  'tests/evaluation/test-trajectory-evidence.sh'
   'tests/docs/test-doc-contracts.sh'
   'tests/workflow/test-repository-workflow.sh'
   'tests/workflow/test-task-authority.sh'
@@ -128,8 +144,20 @@ for gate in "${required_gates[@]}"; do
 done
 
 require .github/workflows/premerge.yml 'run: scripts/validate-premerge.sh'
+require .github/workflows/premerge.yml 'HARNESS_EVALUATION_REPORT: harness-evaluation.json'
+require .github/workflows/premerge.yml 'name: harness-evaluation-report'
+require .github/workflows/premerge.yml 'if: ${{ always() }}'
+require docs/evaluation/harness-evaluation-v1.md 'final 4096 bytes'
+require scripts/README.md 'bounded failure diagnostics'
 require .github/workflows/premerge.yml 'tests/installer/test-install-harness-modes.ps1'
 require .github/workflows/harness-release.yml 'run: scripts/validate-premerge.sh'
+require docs/product/installation-profiles.md 'rejects symlink or reparse-point traversal'
+require scripts/README.md 'optional payloads,'
+require scripts/README.md 'agent shims'
+require README.md 'metadata-only trajectory evidence'
+require scripts/README.md 'validate-trajectory-evidence.py'
+require docs/README.md 'metadata-only boundary for external agent trajectory evidence'
+require docs/evaluation/trajectory-evidence-v1.md 'repository-harness-trajectory/v1'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null

@@ -118,10 +118,24 @@ function Get-PayloadFiles([string]$Manifest) {
     }
 }
 
+function Assert-NoReparseComponents([string]$Relative, [string]$Label) {
+    $current = $script:TargetDir
+    foreach ($component in ($Relative -split '[\\/]')) {
+        if ([string]::IsNullOrEmpty($component)) { continue }
+        $current = Join-Path $current $component
+        $item = Get-Item -LiteralPath $current -Force -ErrorAction SilentlyContinue
+        if ($null -ne $item -and (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) {
+            Fail "refusing symlink or reparse point for $Label"
+        }
+    }
+}
+
 function Copy-HarnessFile([string]$Relative) {
     $target = Join-Path $script:TargetDir $Relative
+    Assert-NoReparseComponents $Relative "Harness path $Relative"
+    $targetItem = Get-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
 
-    if (Test-Path $target) {
+    if ($null -ne $targetItem) {
         if ($script:ConflictAction -eq "merge") {
             Write-Step "skip     $Relative (merge keeps existing file)"
             $script:Skipped++
@@ -176,7 +190,9 @@ function Refresh-AgentShimFile {
         return
     }
     $target = Join-Path $script:TargetDir "AGENTS.md"
-    if (!(Test-Path $target)) {
+    Assert-NoReparseComponents "AGENTS.md" "AGENTS.md"
+    $targetItem = Get-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
+    if ($null -eq $targetItem) {
         return
     }
 
@@ -222,8 +238,10 @@ function Get-HarnessReleaseTag {
 }
 
 function Merge-CoreGitignore([string]$Target) {
+    Assert-NoReparseComponents ".gitignore" ".gitignore"
     $rules = @("# Harness core maintenance binary", "scripts/bin/harness", "scripts/bin/harness.exe")
-    $existing = if (Test-Path $Target) { Get-Content -LiteralPath $Target } else { @() }
+    $targetItem = Get-Item -LiteralPath $Target -Force -ErrorAction SilentlyContinue
+    $existing = if ($null -ne $targetItem) { Get-Content -LiteralPath $Target } else { @() }
     $missing = @($rules | Where-Object { $existing -notcontains $_ })
     if ($missing.Count -eq 0) {
         Write-Step "skip     .gitignore (Harness core binary rules already present)"
@@ -233,7 +251,7 @@ function Merge-CoreGitignore([string]$Target) {
         Write-Step "update   .gitignore (append Harness core binary rules)"
         return
     }
-    $prefix = if ((Test-Path $Target) -and ((Get-Item $Target).Length -gt 0)) { "`n" } else { "" }
+    $prefix = if (($null -ne $targetItem) -and ($targetItem.Length -gt 0)) { "`n" } else { "" }
     Add-Content -LiteralPath $Target -Value ($prefix + (($missing -join "`n") + "`n")) -NoNewline
     Write-Step "updated  .gitignore (appended Harness core binary rules)"
 }
@@ -281,8 +299,11 @@ function Install-HarnessCore {
                 Invoke-WebRequest -UseBasicParsing -Uri $checksumUrl -OutFile $checksum
             }
             $expected = ((Get-Content -LiteralPath $checksum -Raw) -split "\s+")[0].ToLowerInvariant()
+            if ($expected -notmatch '^[0-9a-f]{64}$') {
+                Fail "Invalid SHA-256 checksum for harness-windows-x64.exe: expected a 64-character hexadecimal digest"
+            }
             $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $staged).Hash.ToLowerInvariant()
-            if ([string]::IsNullOrWhiteSpace($expected) -or $expected -ne $actual) { Fail "Checksum mismatch for harness-windows-x64.exe: expected $expected, got $actual" }
+            if ($expected -ne $actual) { Fail "Checksum mismatch for harness-windows-x64.exe: expected $expected, got $actual" }
             $reportedVersion = ((& $staged --version) -split "\s+")[-1]
             if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne $releaseTag.Substring(9)) {
                 Fail "Harness core release identity mismatch: tag=$($releaseTag.Substring(9)), binary=$reportedVersion"
@@ -303,6 +324,7 @@ function Install-HarnessCore {
             Assert-NotReparsePoint $target "repository Harness executable"
             New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
             $targetTemp = Join-Path (Split-Path -Parent $target) (".harness." + [guid]::NewGuid().ToString("N") + ".tmp")
+            Assert-NotReparsePoint $targetTemp "temporary Harness executable"
             Copy-Item -LiteralPath $staged -Destination $targetTemp
             if (Test-Path $target) {
                 $backup = Join-Path $script:BackupDir "scripts/bin/harness.exe"
@@ -355,7 +377,9 @@ $script:CoreSourceBaseUrl = if ($env:HARNESS_CORE_SOURCE_BASE_URL) { $env:HARNES
 $script:PayloadManifest = "scripts/harness-install-files.txt"
 $script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"
 $script:TargetDir = Resolve-TargetPath $Directory
-$script:BackupDir = Join-Path $script:TargetDir (".harness-backup/" + (Get-Date -Format "yyyyMMddHHmmss"))
+$backupRelative = ".harness-backup/" + [guid]::NewGuid().ToString("N")
+$script:BackupDir = Join-Path $script:TargetDir $backupRelative
+Assert-NoReparseComponents $backupRelative "Harness backup directory"
 $script:ConflictAction = "install"
 
 if ($Merge -and $Override) {
@@ -367,7 +391,13 @@ if (!$DryRun -and !(Test-Path $script:TargetDir)) {
 }
 
 $protectedPaths = @("AGENTS.md", "docs")
-$conflicts = $protectedPaths | Where-Object { Test-Path (Join-Path $script:TargetDir $_) }
+foreach ($protected in $protectedPaths) {
+    Assert-NoReparseComponents $protected "protected Harness path $protected"
+}
+$conflicts = $protectedPaths | Where-Object {
+    $item = Get-Item -LiteralPath (Join-Path $script:TargetDir $_) -Force -ErrorAction SilentlyContinue
+    $null -ne $item
+}
 if ($conflicts.Count -gt 0) {
     if ($Merge) {
         $script:ConflictAction = "merge"
@@ -376,7 +406,8 @@ if ($conflicts.Count -gt 0) {
         $script:ConflictAction = "override"
         foreach ($protected in $protectedPaths) {
             $path = Join-Path $script:TargetDir $protected
-            if (!(Test-Path $path)) { continue }
+            $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+            if ($null -eq $item) { continue }
             if ($DryRun) {
                 Write-Step "override $protected (backup first)"
             } else {
@@ -396,7 +427,8 @@ if ($conflicts.Count -gt 0) {
                 $script:ConflictAction = "override"
                 foreach ($protected in $protectedPaths) {
                     $path = Join-Path $script:TargetDir $protected
-                    if (Test-Path $path) {
+                    $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+                    if ($null -ne $item) {
                         New-Item -ItemType Directory -Force -Path $script:BackupDir | Out-Null
                         Move-Item -LiteralPath $path -Destination (Join-Path $script:BackupDir $protected)
                     }

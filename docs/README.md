@@ -17,6 +17,14 @@ Start with the smallest authoritative surface.
   mechanical validation.
 - `templates/`: optional decision, plan, runbook, and Harness-improvement
   structures.
+- `research/`: dated landscape studies and capability gap maps; research is
+  informative until a lasting decision adopts a rule.
+- `tests/evaluation/` and `scripts/evaluate-harness.sh`: deterministic,
+  machine-readable behavior evidence for the current Harness-owned claims.
+- `evaluation/`: the versioned machine-readable evaluation contract and its
+  scope limits.
+- `decisions/0029-*` and `evaluation/trajectory-evidence-v1.md`: the optional,
+  metadata-only boundary for external agent trajectory evidence.
 
 ## Consumer-Owned Truth
 

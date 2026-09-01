@@ -30,7 +30,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes jq ripgrep
       - name: Run pre-merge contract
+        env:
+          HARNESS_EVALUATION_REPORT: harness-evaluation.json
         run: scripts/validate-premerge.sh
+      - name: Upload behavior scorecard
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-evaluation-report
+          path: harness-evaluation.json
+          if-no-files-found: warn
 
   windows-installer:
     name: Validate Windows installer contract

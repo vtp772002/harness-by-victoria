@@ -17,6 +17,8 @@ Core installation:
 - records exact upstream bytes under `.harness-core/`;
 - preserves consumer files through merge or human-directed conflict handling;
 - backs up replaced files;
+- rejects symlink or reparse-point traversal in bootstrap-managed target paths;
+- uses a fresh, repository-local backup directory for each invocation;
 - does not install an application stack or product policy;
 - does not install schemas, databases, orchestration, or background processes;
 - does not delete pre-existing legacy Harness files.

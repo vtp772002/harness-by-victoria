@@ -164,6 +164,30 @@ Operating an arbitrary consumer application end to end remains consumer-owned
 research. Harness does not claim that installation alone supplies runtimes,
 fixtures, credentials, logs, or interface automation.
 
+## Evaluate Harness
+
+Run the repository-owned behavior scorecard:
+
+```bash
+scripts/evaluate-harness.sh
+```
+
+It emits versioned JSON for authority, workflow, installer safety, core
+lifecycle, release integrity, and documentation contracts. The report states
+what it does not evaluate: LLM quality, consumer runtime behavior, host-agent
+permissions or sandboxing, provider telemetry, cost, and branch protection.
+
+External runners can optionally submit metadata-only trajectory evidence for
+validation:
+
+```bash
+python3 scripts/validate-trajectory-evidence.py trajectory.json
+```
+
+This adapter checks authority ordering and outcome proof without executing a
+model or accepting prompts, transcripts, file contents, tool payloads, or
+secrets. It is not installed in the default core.
+
 ## Protocol V1 End Of Life
 
 The former SQLite `harness-cli` and machine protocol v1 ended support on

@@ -1,0 +1,23 @@
+{
+  "schema": "repository-harness-trajectory/v1",
+  "privacy": {
+    "mode": "metadata_only",
+    "payloads_redacted": true
+  },
+  "run": {
+    "run_id": "run-invalid-003",
+    "repository_revision": "0123456789abcdef0123456789abcdef01234567",
+    "client": "portable fixture runner"
+  },
+  "events": [
+    {"seq": 1, "type": "request", "ref": "request"},
+    {"seq": 2, "type": "authority_read", "ref": "docs/WORKFLOW.md"},
+    {"seq": 3, "type": "validation", "ref": "scripts/validate-premerge.sh", "result": "passed"},
+    {"seq": 4, "type": "completion", "result": "completed"}
+  ],
+  "outcome": {
+    "status": "completed",
+    "changed": false,
+    "proof_refs": []
+  }
+}
