@@ -126,6 +126,7 @@ for skill in audit-onboarding-proposal encode-invariant improve-harness onboard-
   [[ -f "$shim" ]]
   grep -Fq "canonical skill is" "$shim"
   grep -Fq ".agents/skills/$skill/SKILL.md" "$shim"
+  grep -Fq '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->' "$shim"
 done
 [[ ! -e "$claude/.claude/skills/engineering-wisdom/SKILL.md" ]]
 claude_backup=$(find "$claude/.harness-backup" -name CLAUDE.md -type f | head -n 1)
@@ -134,12 +135,22 @@ claude_backup=$(find "$claude/.harness-backup" -name CLAUDE.md -type f | head -n
 # A marked Claude wrapper is Harness-owned and can be refreshed during merge;
 # the stale bytes remain recoverable in the per-run backup.
 stale_wrapper="$claude/.claude/skills/encode-invariant/SKILL.md"
-printf '# Claude Code compatibility loader\nstale wrapper\n' >"$stale_wrapper"
+printf '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->\n# Claude Code compatibility loader\nstale wrapper\n' >"$stale_wrapper"
 install --directory "$claude" --claude --merge --yes >"$temp/claude-refresh.out"
 grep -Fq 'canonical skill is' "$stale_wrapper"
 ! grep -Fq 'stale wrapper' "$stale_wrapper"
 stale_wrapper_backup=$(find "$claude/.harness-backup" -path '*/.claude/skills/encode-invariant/SKILL.md' -type f | head -n 1)
 grep -Fxq 'stale wrapper' "$stale_wrapper_backup"
+
+# A consumer file that happens to reuse the old heading is not Harness-owned
+# and must remain byte-for-byte unchanged.
+consumer_skill="$claude/.claude/skills/encode-invariant/SKILL.md"
+printf '# Claude Code compatibility loader\nconsumer-owned policy\n' >"$consumer_skill"
+consumer_skill_before=$(shasum -a 256 "$consumer_skill" | awk '{ print $1 }')
+install --directory "$claude" --claude --merge --yes >"$temp/claude-consumer.out"
+consumer_skill_after=$(shasum -a 256 "$consumer_skill" | awk '{ print $1 }')
+[[ "$consumer_skill_after" == "$consumer_skill_before" ]]
+! grep -Fq 'canonical skill is' "$consumer_skill"
 
 # Merge fills missing core files but never deletes or rewrites legacy protocol
 # files, a pre-existing database, or unrelated scripts.

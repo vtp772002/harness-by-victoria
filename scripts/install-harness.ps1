@@ -318,7 +318,7 @@ function Copy-SourceFileTo([string]$SourceRelative, [string]$TargetRelative, [bo
     $targetItem = Get-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
 
     if ($null -ne $targetItem) {
-        if ($RefreshMarked -and !$targetItem.PSIsContainer -and ((Get-Content -LiteralPath $target -Raw) -like "*# Claude Code compatibility loader*")) {
+        if ($RefreshMarked -and !$targetItem.PSIsContainer -and ((Get-Content -LiteralPath $target -Raw) -match '(?m)^<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->\r?$')) {
             $sourceTemp = Join-Path ([System.IO.Path]::GetTempPath()) ("harness-source-" + [guid]::NewGuid().ToString("N"))
             try {
                 Write-SourceFile $SourceRelative $sourceTemp

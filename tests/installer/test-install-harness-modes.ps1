@@ -92,6 +92,7 @@ try {
         if (!(Test-Path $ClaudeSkill)) { throw "PowerShell Claude skill wrapper missing: $Skill" }
         $ClaudeSkillText = Get-Content -Raw $ClaudeSkill
         if (!$ClaudeSkillText.Contains(".agents/skills/$Skill/SKILL.md")) { throw "PowerShell Claude skill wrapper is not canonical: $Skill" }
+        if (!$ClaudeSkillText.Contains("<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->")) { throw "PowerShell Claude skill wrapper marker missing: $Skill" }
     }
     if (Test-Path (Join-Path $Claude ".claude/skills/engineering-wisdom/SKILL.md")) { throw "engineering wisdom was not kept explicit-only" }
     $ClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "CLAUDE.md" -File | Select-Object -First 1
@@ -101,12 +102,27 @@ try {
     if (([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count -ne 1) { throw "PowerShell Claude shim is not idempotent" }
 
     $StaleClaudeSkill = Join-Path $Claude ".claude/skills/encode-invariant/SKILL.md"
-    "# Claude Code compatibility loader`nstale wrapper`n" | Set-Content $StaleClaudeSkill
+    @(
+        "<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->"
+        "# Claude Code compatibility loader"
+        "stale wrapper"
+    ) | Set-Content $StaleClaudeSkill
     Invoke-Install $Claude @("Merge", "Claude")
     $RefreshedClaudeSkill = Get-Content -Raw $StaleClaudeSkill
     if (!$RefreshedClaudeSkill.Contains("canonical skill is") -or $RefreshedClaudeSkill.Contains("stale wrapper")) { throw "PowerShell Claude skill wrapper was not refreshed from the canonical source" }
     $StaleClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "SKILL.md" -File | Where-Object { $_.FullName -like "*encode-invariant*" } | Select-Object -First 1
     if (!$StaleClaudeBackup -or !(Get-Content -Raw $StaleClaudeBackup.FullName).Contains("stale wrapper")) { throw "PowerShell Claude skill wrapper backup is missing stale bytes" }
+
+    $ConsumerClaudeSkill = Join-Path $Claude ".claude/skills/encode-invariant/SKILL.md"
+    @(
+        "# Claude Code compatibility loader"
+        "consumer-owned policy"
+    ) | Set-Content $ConsumerClaudeSkill
+    $ConsumerClaudeSkillBefore = (Get-FileHash -Algorithm SHA256 $ConsumerClaudeSkill).Hash
+    Invoke-Install $Claude @("Merge", "Claude")
+    $ConsumerClaudeSkillAfter = (Get-FileHash -Algorithm SHA256 $ConsumerClaudeSkill).Hash
+    if ($ConsumerClaudeSkillAfter -ne $ConsumerClaudeSkillBefore) { throw "PowerShell consumer skill with legacy heading was overwritten" }
+    if ((Get-Content -Raw $ConsumerClaudeSkill).Contains("canonical skill is")) { throw "PowerShell consumer skill was treated as a marked wrapper" }
 
     $ClaudeOptIn = Join-Path $Temp "claude-opt-in"
     Invoke-Install $ClaudeOptIn @("Claude", "WithEngineeringWisdom")

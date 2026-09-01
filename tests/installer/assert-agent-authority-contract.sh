@@ -42,6 +42,7 @@ claude_skill_payloads=(
 for payload in "${claude_skill_payloads[@]}"; do
   grep -Fxq "$payload" "$root/scripts/claude-skill-install-files.txt"
   grep -Fq 'canonical skill is' "$root/$payload"
+  grep -Fq '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->' "$root/$payload"
 done
 ! grep -Fq '.claude/skills/' "$root/scripts/harness-install-files.txt"
 python3 - "$root" <<'PY'
@@ -74,6 +75,8 @@ canonical = frontmatter(root / ".agents/skills/engineering-wisdom/SKILL.md")
 wrapper = frontmatter(root / "scripts/claude-engineering-wisdom-shim.md")
 if canonical != wrapper:
     raise SystemExit("Claude engineering-wisdom wrapper metadata drifted from canonical skill")
+if "<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->" not in (root / "scripts/claude-engineering-wisdom-shim.md").read_text():
+    raise SystemExit("Claude engineering-wisdom wrapper marker is missing")
 PY
 
 [[ "$(wc -c <"$agent_block" | tr -d ' ')" -le 1600 ]]

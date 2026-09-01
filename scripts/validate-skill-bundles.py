@@ -4,7 +4,9 @@
 This validator intentionally uses only the Python standard library. It checks
 the normative metadata needed for skills-compatible clients and the local
 manifest/compatibility contract that keeps canonical skills and client wrappers
-from drifting.
+from drifting. Its frontmatter parser accepts the scalar/block-scalar subset
+used by this repository and rejects unsupported nested or flow data instead of
+guessing at malformed YAML.
 """
 
 from __future__ import annotations
@@ -26,8 +28,10 @@ MANIFESTS = (
 CANONICAL_ROOT = Path(".agents/skills")
 CLAUDE_ROOT = Path(".claude/skills")
 FRONTMATTER_FIELD = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]*(.*))?$")
+FRONTMATTER_BLOCK = re.compile(r"^[|>][+-]?[1-9]?$")
 SKILL_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$|^[a-z0-9]$")
 MARKDOWN_LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+CLAUDE_WRAPPER_MARKER = "<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->"
 
 
 class ValidationError(Exception):
@@ -61,14 +65,49 @@ def regular_file(root: Path, relative: str, label: str) -> Path:
     return current
 
 
-def scalar_value(raw: str) -> str:
+def scalar_value(raw: str, path: Path, line_number: int, key: str) -> str:
     value = raw.strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        try:
-            parsed = ast.literal_eval(value)
-        except (SyntaxError, ValueError):
-            return value[1:-1]
-        return parsed if isinstance(parsed, str) else value
+    if not value:
+        return ""
+
+    def malformed(message: str) -> None:
+        error(f"{path}:{line_number}: {key} {message}")
+
+    if value[0] in {"'", '"'}:
+        quote = value[0]
+        if len(value) < 2 or value[-1] != quote:
+            malformed("has an unterminated quoted scalar")
+        if quote == '"':
+            try:
+                parsed = ast.literal_eval(value)
+            except (SyntaxError, ValueError):
+                malformed("has an invalid double-quoted scalar")
+            if not isinstance(parsed, str):
+                malformed("must be a string scalar")
+            return parsed
+        inner = value[1:-1]
+        index = 0
+        while index < len(inner):
+            if inner[index] == "'":
+                if index + 1 >= len(inner) or inner[index + 1] != "'":
+                    malformed("has an invalid single-quoted scalar")
+                index += 2
+            else:
+                index += 1
+        return inner.replace("''", "'")
+
+    if value.startswith("["):
+        malformed("uses a flow collection; quote it or use a block scalar")
+    if value.startswith("{"):
+        malformed("uses a flow mapping; quote it or use a block scalar")
+    if value.startswith(("- ", "? ", ": ")):
+        malformed("uses unsupported sequence or mapping syntax")
+    if ": " in value or re.search(r"[ \t]#", value):
+        malformed("contains YAML syntax that requires quoting")
+    if value in {"null", "Null", "NULL", "~", "true", "True", "TRUE", "false", "False", "FALSE"}:
+        malformed("must be a string scalar, not a YAML null or boolean")
+    if re.fullmatch(r"[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)", value):
+        malformed("must be a string scalar, not a YAML number")
     return value
 
 
@@ -99,8 +138,9 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, str], list[str]]:
         raw = raw or ""
         if key in fields:
             error(f"{path}:{index + 1}: duplicate frontmatter field: {key}")
-        if raw.strip().startswith(("|", ">")):
-            folded = raw.strip().startswith(">")
+        block = FRONTMATTER_BLOCK.fullmatch(raw.strip())
+        if block:
+            folded = block.group(1) == ">"
             values: list[str] = []
             index += 1
             while index < closing and (
@@ -111,6 +151,11 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, str], list[str]]:
             fields[key] = (" " if folded else "\n").join(values).strip()
             continue
         if not raw.strip():
+            if index + 1 < closing and lines[index + 1].startswith((" ", "\t")):
+                error(
+                    f"{path}:{index + 1}: nested frontmatter values are unsupported; "
+                    "use a scalar or block scalar"
+                )
             index += 1
             while index < closing and (
                 not lines[index].strip() or lines[index].startswith((" ", "\t"))
@@ -118,7 +163,7 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, str], list[str]]:
                 index += 1
             fields[key] = ""
             continue
-        fields[key] = scalar_value(raw)
+        fields[key] = scalar_value(raw, path, index + 1, key)
         index += 1
 
     for required in ("name", "description"):
@@ -139,6 +184,14 @@ def validate_metadata(path: Path, expected_name: str) -> dict[str, str]:
         )
     if len(description) > 1024:
         error(f"{path}: description exceeds the 1024-character Agent Skills limit")
+    return fields
+
+
+def validate_claude_wrapper(path: Path, expected_name: str) -> dict[str, str]:
+    fields = validate_metadata(path, expected_name)
+    text = path.read_text(encoding="utf-8")
+    if f"\n{CLAUDE_WRAPPER_MARKER}\n" not in text:
+        error(f"{path}: missing managed Claude wrapper marker {CLAUDE_WRAPPER_MARKER}")
     return fields
 
 
@@ -234,7 +287,7 @@ def validate_root(root: Path) -> None:
         fields = validate_metadata(path, name)
         validate_internal_links(path, root)
         if name in wrappers:
-            wrapper_fields = validate_metadata(wrappers[name], name)
+            wrapper_fields = validate_claude_wrapper(wrappers[name], name)
             if wrapper_fields["description"] != fields["description"]:
                 error(f"{wrappers[name]}: metadata drifted from {path}")
             validate_internal_links(wrappers[name], root)
@@ -263,7 +316,7 @@ def validate_root(root: Path) -> None:
     if engineering is None or not engineering_wrapper.is_file():
         error("engineering-wisdom canonical skill or Claude wrapper source is missing")
     engineering_fields = validate_metadata(engineering, "engineering-wisdom")
-    wrapper_fields = validate_metadata(engineering_wrapper, "engineering-wisdom")
+    wrapper_fields = validate_claude_wrapper(engineering_wrapper, "engineering-wisdom")
     if wrapper_fields["description"] != engineering_fields["description"]:
         error(f"{engineering_wrapper}: metadata drifted from {engineering}")
     validate_internal_links(engineering_wrapper, root)

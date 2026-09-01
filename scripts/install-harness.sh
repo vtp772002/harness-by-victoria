@@ -254,7 +254,7 @@ copy_source_file_to() {
 
   if [ -e "$target" ]; then
     if [ "$refresh_marked" -eq 1 ] &&
-       grep -Fq '# Claude Code compatibility loader' "$target"; then
+       grep -Fxq '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->' "$target"; then
       local source_tmp
       source_tmp="$(mktemp)"
       write_source_file "$source_relative" "$source_tmp"

@@ -189,6 +189,8 @@ require docs/README.md 'metadata-only boundary for external agent trajectory evi
 require docs/evaluation/trajectory-evidence-v1.md 'repository-harness-trajectory/v1'
 require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'Agent Skills specification'
 require scripts/README.md 'validate-skill-bundles.py'
+require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
+require scripts/README.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
 require docs/decisions/0032-signed-build-provenance-for-core-artifacts.md 'actions/attest@v4'
 require README.md 'gh attestation verify'
 require scripts/README.md 'GitHub artifact attestation'

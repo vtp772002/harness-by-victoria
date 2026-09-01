@@ -34,7 +34,9 @@ Every skill bundle declared by this repository's installer manifests must:
    traversing a symlink or escaping the repository;
 5. appear in exactly one installer payload manifest; and
 6. keep each Claude wrapper's name and description equal to its canonical
-   skill while pointing its instructions back to that canonical file.
+   skill, carry the explicit
+   `<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->` ownership marker, and point its
+   instructions back to that canonical file.
 
 The four core Claude wrappers are compatibility discovery artifacts, not a
 second policy source. The engineering-wisdom wrapper remains explicit-only.

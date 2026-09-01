@@ -47,6 +47,11 @@ contract test is tests/skills/test-skill-bundles.sh.
   skill-discovery wrappers. Marked wrappers refresh with backups during merge; unmarked
   consumer skill files remain untouched.
 
+Claude skill wrappers carry an explicit
+`<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->` ownership marker. The installers
+refresh only files with that marker; a consumer file that merely reuses the
+old wrapper heading is preserved.
+
 The bootstraps require a 64-character hexadecimal SHA-256 sidecar, normalize
 its case, verify the candidate checksum and reported version before delegating
 install or update. The source payload defaults to this repository. Until this
