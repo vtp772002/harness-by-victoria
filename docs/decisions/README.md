@@ -5,7 +5,7 @@ security, data-ownership, and validation choices.
 
 Use `docs/templates/decision.md`. Task-local choices stay in the active plan.
 
-## Current Upstream Decisions
+## Current Product Decisions
 
 | Decision | Title |
 | --- | --- |
@@ -20,9 +20,12 @@ Use `docs/templates/decision.md`. Task-local choices stay in the active plan.
 | 0030 | Node 24 GitHub Actions Runtime |
 | 0031 | Portable Agent Skills Bundle Contract |
 | 0032 | Signed Build Provenance For Core Artifacts |
+| 0033 | Copilot Instruction Loader |
 
-These decisions describe upstream Harness. Installed consumers begin with an
-empty decision index and add only real consumer choices.
+These decisions describe the current Harness product, including decisions
+inherited from the upstream lineage and downstream decisions owned by this
+repository. Installed consumers begin with an empty decision index and add
+only real consumer choices.
 
 ## History
 

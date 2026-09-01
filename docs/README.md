@@ -6,6 +6,8 @@ Start with the smallest authoritative surface.
 
 - `WORKFLOW.md`: request shape, planning, judgment, operation, validation, and
   completion.
+- `.github/copilot-instructions.md`: optional-surface loader that points
+  Copilot back to the canonical `AGENTS.md` instructions.
 - `ARCHITECTURE.md`: current product, code, state, update, and ownership
   boundaries.
 - `HARNESS.md`: product principles and installed-core model.

@@ -49,6 +49,7 @@ current_files=(
   docs/decisions/0030-node24-github-actions-runtime.md
   docs/decisions/0031-portable-agent-skills-bundle-contract.md
   docs/decisions/0032-signed-build-provenance-for-core-artifacts.md
+  docs/decisions/0033-copilot-instruction-loader.md
   docs/plans/active/world-class-harness.md
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
@@ -58,10 +59,12 @@ current_files=(
   tests/evaluation/test-trajectory-evidence.sh
   scripts/claude-skill-install-files.txt
   scripts/claude-engineering-wisdom-shim.md
+  scripts/copilot-harness-block.md
   .claude/skills/audit-onboarding-proposal/SKILL.md
   .claude/skills/encode-invariant/SKILL.md
   .claude/skills/improve-harness/SKILL.md
   .claude/skills/onboard-repository/SKILL.md
+  .github/copilot-instructions.md
   .github/ISSUE_TEMPLATE/real-world-example.md
 )
 for file in "${current_files[@]}"; do
@@ -94,6 +97,8 @@ require README.md '## Evaluate Harness'
 require README.md '## Protocol V1 End Of Life'
 require README.md '--claude'
 require README.md '-Claude'
+require README.md '--copilot'
+require README.md '-Copilot'
 require README.md '.claude/skills/'
 require README.md 'canonical skill bodies'
 require docs/research/application-legibility.md 'research, not a release gate'
@@ -194,12 +199,21 @@ require scripts/README.md 'validate-skill-bundles.py'
 require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
 require scripts/README.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
 require docs/decisions/0032-signed-build-provenance-for-core-artifacts.md 'actions/attest@v4'
+require docs/decisions/0033-copilot-instruction-loader.md 'AGENTS.md'
+require docs/decisions/0033-copilot-instruction-loader.md '--copilot'
+require docs/decisions/0033-copilot-instruction-loader.md 'no `.github/skills/` copy'
+require docs/decisions/0033-copilot-instruction-loader.md 'custom-instructions documentation'
 require README.md 'gh attestation verify'
 require README.md 'docs/RELEASE.md'
 require docs/RELEASE.md 'gh workflow run harness-release.yml'
 require docs/RELEASE.md 'gh attestation verify'
 require docs/RELEASE.md 'Branch protection'
 require scripts/README.md 'GitHub artifact attestation'
+require scripts/README.md 'copilot-harness-block.md'
+require scripts/README.md '--copilot'
+require scripts/README.md 'HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1'
+require docs/product/installation-profiles.md '-Copilot'
+require docs/research/agent-harness-landscape.md 'GitHub Copilot'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null

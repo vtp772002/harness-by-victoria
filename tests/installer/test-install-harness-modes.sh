@@ -22,6 +22,14 @@ extract_block() {
   ' "$1"
 }
 
+extract_copilot_block() {
+  awk '
+    /<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->/ { in_block = 1 }
+    in_block { print }
+    /<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->/ { exit }
+  ' "$1"
+}
+
 assert_rejected_flag() {
   local flag="$1"
   local output="$temp/rejected-${flag#--}.out"
@@ -151,6 +159,46 @@ install --directory "$claude" --claude --merge --yes >"$temp/claude-consumer.out
 consumer_skill_after=$(shasum -a 256 "$consumer_skill" | awk '{ print $1 }')
 [[ "$consumer_skill_after" == "$consumer_skill_before" ]]
 ! grep -Fq 'canonical skill is' "$consumer_skill"
+
+# Copilot instructions are an opt-in compatibility loader. It appends one
+# canonical block, preserves local instructions, and backs up refreshes.
+copilot="$temp/copilot"
+mkdir -p "$copilot/.github"
+printf '# Local Copilot Rules\n\nKeep this Copilot-only rule.\n' >"$copilot/.github/copilot-instructions.md"
+copilot_before=$(shasum -a 256 "$copilot/.github/copilot-instructions.md" | awk '{ print $1 }')
+install --directory "$copilot" --copilot --yes >"$temp/copilot.out"
+grep -Fq 'Keep this Copilot-only rule.' "$copilot/.github/copilot-instructions.md"
+cmp -s <(extract_copilot_block "$copilot/.github/copilot-instructions.md") "$root/scripts/copilot-harness-block.md"
+[[ "$(grep -Fc '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$copilot/.github/copilot-instructions.md")" == 1 ]]
+copilot_backup=$(find "$copilot/.harness-backup" -path '*/.github/copilot-instructions.md' -type f | head -n 1)
+[[ "$(shasum -a 256 "$copilot_backup" | awk '{ print $1 }')" == "$copilot_before" ]]
+install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-idempotent.out"
+[[ "$(grep -Fc '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$copilot/.github/copilot-instructions.md")" == 1 ]]
+
+printf '# Copilot Repository Instructions\n<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->\nstale\n<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->\n' \
+  >"$copilot/.github/copilot-instructions.md"
+install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-refresh.out"
+grep -Fq 'GitHub Copilot compatibility loader' "$copilot/.github/copilot-instructions.md"
+! grep -Fq 'stale' "$copilot/.github/copilot-instructions.md"
+
+# An unmarked Copilot file is consumer-owned: the loader may append its block,
+# but it must not replace the consumer's existing policy.
+printf '# GitHub Copilot compatibility loader\nconsumer-owned policy\n' \
+  >"$copilot/.github/copilot-instructions.md"
+consumer_copilot_before=$(shasum -a 256 "$copilot/.github/copilot-instructions.md" | awk '{ print $1 }')
+install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-consumer.out"
+grep -Fq 'consumer-owned policy' "$copilot/.github/copilot-instructions.md"
+grep -Fq 'GitHub Copilot compatibility loader' "$copilot/.github/copilot-instructions.md"
+[[ "$(shasum -a 256 "$copilot/.github/copilot-instructions.md" | awk '{ print $1 }')" != "$consumer_copilot_before" ]]
+[[ "$(grep -Fc '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$copilot/.github/copilot-instructions.md")" == 1 ]]
+
+printf '# Copilot Repository Instructions\n<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->\nstale without end\n' \
+  >"$copilot/.github/copilot-instructions.md"
+if install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-malformed.out" 2>&1; then
+  echo 'installer unexpectedly accepted malformed Copilot markers' >&2
+  exit 1
+fi
+grep -Fq 'exactly one complete Copilot Harness marker pair' "$temp/copilot-malformed.out"
 
 # Merge fills missing core files but never deletes or rewrites legacy protocol
 # files, a pre-existing database, or unrelated scripts.

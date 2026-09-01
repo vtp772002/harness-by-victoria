@@ -26,6 +26,10 @@ Options:
                          and installs thin skill-discovery wrappers.
                          Existing CLAUDE.md files get the block appended
                          after a backup; a stale block is refreshed in place.
+      --copilot          Also install or refresh .github/copilot-instructions.md
+                         so Copilot surfaces use AGENTS.md as their single
+                         policy source. Existing files are preserved and a
+                         marked block is appended or refreshed after backup.
       --override         On protected-path conflict, back up and replace
                          AGENTS.md and docs/.
       --force            Overwrite existing files after backing them up.
@@ -242,6 +246,29 @@ agent_shim_block() {
 
 claude_shim_block() {
   read_source_text "scripts/claude-harness-block.md"
+}
+
+copilot_shim_block() {
+  read_source_text "scripts/copilot-harness-block.md"
+}
+
+validate_copilot_markers() {
+  local target="$1"
+  local begin_marker='<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->'
+  local end_marker='<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->'
+  local begin_count end_count begin_line end_line
+  begin_count=$(grep -Fc "$begin_marker" "$target" || true)
+  end_count=$(grep -Fc "$end_marker" "$target" || true)
+  if [ "$begin_count" -eq 0 ] && [ "$end_count" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    fail "$target must contain exactly one complete Copilot Harness marker pair"
+  fi
+  begin_line=$(grep -Fn "$begin_marker" "$target" | cut -d: -f1)
+  end_line=$(grep -Fn "$end_marker" "$target" | cut -d: -f1)
+  [ "$begin_line" -lt "$end_line" ] ||
+    fail "$target Copilot Harness markers are out of order"
 }
 
 copy_source_file_to() {
@@ -565,6 +592,105 @@ write_claude_shim() {
   rm -f "$block_tmp"
 }
 
+backup_copilot_file() {
+  local target="$TARGET_DIR/.github/copilot-instructions.md"
+
+  [ -e "$target" ] || return 0
+  mkdir -p "$BACKUP_DIR/.github"
+  [ -e "$BACKUP_DIR/.github/copilot-instructions.md" ] && return 0
+  cp -p "$target" "$BACKUP_DIR/.github/copilot-instructions.md"
+}
+
+write_copilot_instructions() {
+  [ "$INSTALL_COPILOT_INSTRUCTIONS" -eq 1 ] || return 0
+
+  local target="$TARGET_DIR/.github/copilot-instructions.md"
+  local block_tmp current_tmp tmp
+
+  validate_target_components ".github/copilot-instructions.md" ".github/copilot-instructions.md"
+
+  if [ "$SOURCE_MODE" = "local" ] && [ -e "$target" ] &&
+     [ "$SOURCE_ROOT/.github/copilot-instructions.md" -ef "$target" ]; then
+    log "skip     .github/copilot-instructions.md (source file)"
+    SKIPPED=$((SKIPPED + 1))
+    return 0
+  fi
+
+  if [ -e "$target" ]; then
+    validate_copilot_markers "$target"
+  fi
+
+  block_tmp="$(mktemp)"
+  copilot_shim_block > "$block_tmp"
+
+  if [ -e "$target" ] &&
+     grep -Fq '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$target" &&
+     grep -Fq '<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->' "$target"; then
+    current_tmp="$(mktemp)"
+    awk '
+      /<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->/ { in_block = 1 }
+      in_block { print }
+      /<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->/ { in_block = 0 }
+    ' "$target" > "$current_tmp"
+    if cmp -s "$current_tmp" "$block_tmp"; then
+      log "skip     .github/copilot-instructions.md (Harness block current)"
+      SKIPPED=$((SKIPPED + 1))
+      rm -f "$current_tmp" "$block_tmp"
+      return 0
+    fi
+    rm -f "$current_tmp"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   .github/copilot-instructions.md (refresh marked Harness block, backup first)"
+    else
+      backup_copilot_file
+      tmp="$(mktemp)"
+      awk '
+        /<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->/ {
+          while ((getline line < block_file) > 0) {
+            print line
+          }
+          in_block = 1
+          next
+        }
+        /<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->/ && in_block {
+          in_block = 0
+          next
+        }
+        !in_block { print }
+      ' block_file="$block_tmp" "$target" > "$tmp"
+      mv "$tmp" "$target"
+      log "updated  .github/copilot-instructions.md (refreshed Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/.github/copilot-instructions.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  elif [ -e "$target" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   .github/copilot-instructions.md (append Harness block, backup first)"
+    else
+      backup_copilot_file
+      {
+        printf '\n'
+        cat "$block_tmp"
+      } >> "$target"
+      log "updated  .github/copilot-instructions.md (appended Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/.github/copilot-instructions.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  else
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "create   .github/copilot-instructions.md"
+    else
+      mkdir -p "$TARGET_DIR/.github"
+      {
+        printf '# Copilot Repository Instructions\n\n'
+        cat "$block_tmp"
+      } > "$target"
+      log "created  .github/copilot-instructions.md"
+    fi
+    CREATED=$((CREATED + 1))
+  fi
+  rm -f "$block_tmp"
+}
+
 install_claude_skills() {
   [ "$INSTALL_CLAUDE_SHIM" -eq 1 ] || return 0
 
@@ -873,6 +999,7 @@ DRY_RUN=0
 INSTALL_ENGINEERING_WISDOM=0
 REFRESH_AGENT_SHIM=0
 INSTALL_CLAUDE_SHIM=0
+INSTALL_COPILOT_INSTRUCTIONS=0
 REQUESTED_CONFLICT_ACTION=""
 POSITIONAL_TARGET=""
 
@@ -905,6 +1032,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --claude)
       INSTALL_CLAUDE_SHIM=1
+      shift
+      ;;
+    --copilot)
+      INSTALL_COPILOT_INSTRUCTIONS=1
       shift
       ;;
     --override)
@@ -1017,6 +1148,11 @@ if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
 else
   log "Engineering wisdom: excluded"
 fi
+if [ "$INSTALL_COPILOT_INSTRUCTIONS" -eq 1 ]; then
+  log "Copilot instructions: included (explicit opt-in)"
+else
+  log "Copilot instructions: excluded"
+fi
 log "Target project: $TARGET_DIR"
 
 install_harness_core
@@ -1024,6 +1160,7 @@ install_harness_core
 install_engineering_wisdom
 refresh_agent_shim
 write_claude_shim
+write_copilot_instructions
 install_claude_skills
 
 log ""

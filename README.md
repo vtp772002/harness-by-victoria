@@ -93,6 +93,12 @@ the four core wrappers, while `--claude --with-engineering-wisdom` /
 wrapper. Managed wrappers can be refreshed safely; an existing unmarked
 consumer skill is never silently replaced.
 
+GitHub Copilot and compatible VS Code surfaces can use the same authority
+through the optional `--copilot` / `-Copilot` loader. It creates or refreshes a
+thin `.github/copilot-instructions.md` pointer to `AGENTS.md`, preserving
+consumer instructions and keeping `.agents/skills/` as the single canonical
+skill location. No `.github/skills/` duplicate is installed.
+
 ## Install
 
 From a target repository:
@@ -117,6 +123,10 @@ PowerShell installer. Both options preserve local `CLAUDE.md` rules, import
 the canonical `AGENTS.md` instructions through one managed block, and install
 the thin skill-discovery wrappers described above. Add the engineering-wisdom
 flag only when that advisory pack is explicitly wanted.
+
+For GitHub Copilot, add `--copilot` to the Bash installer or `-Copilot` to the
+PowerShell installer. The loader is opt-in and only provides discovery; it does
+not grant tool permissions, sandboxing, or merge authority.
 
 The bootstrap downloads a versioned `harness` binary and checksum, verifies
 release identity, and delegates installation to that candidate. Until this

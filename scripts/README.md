@@ -41,11 +41,18 @@ contract test is tests/skills/test-skill-bundles.sh.
   `.agents/skills/`.
 - `claude-engineering-wisdom-shim.md`: the explicit-only Claude discovery
   wrapper for the engineering-wisdom add-on.
+- `copilot-harness-block.md`: the optional GitHub Copilot instruction loader
+  that points back to the canonical `AGENTS.md` source.
 - `agent-harness-block.md` and `claude-harness-block.md`: managed entrypoint
   shims. `--claude` / `-Claude` enables the Claude Code shim through the Bash
   / PowerShell bootstrap respectively, including the thin Claude Code
   skill-discovery wrappers. Marked wrappers refresh with backups during merge; unmarked
   consumer skill files remain untouched.
+
+`--copilot` / `-Copilot` appends or refreshes the managed block in
+`.github/copilot-instructions.md`. It is separate from the default core and
+preserves an existing unmarked Copilot instruction file. The block uses the
+exact `HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1` / `END:v1` ownership markers.
 
 Claude skill wrappers carry an explicit
 `<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->` ownership marker. The installers

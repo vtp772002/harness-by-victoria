@@ -124,6 +124,51 @@ try {
     if ($ConsumerClaudeSkillAfter -ne $ConsumerClaudeSkillBefore) { throw "PowerShell consumer skill with legacy heading was overwritten" }
     if ((Get-Content -Raw $ConsumerClaudeSkill).Contains("canonical skill is")) { throw "PowerShell consumer skill was treated as a marked wrapper" }
 
+    # Copilot instructions are an opt-in compatibility loader. It appends one
+    # canonical block, preserves local instructions, and backs up refreshes.
+    $Copilot = Join-Path $Temp "copilot"
+    New-Item -ItemType Directory -Force (Join-Path $Copilot ".github") | Out-Null
+    "# Local Copilot Rules`n`nKeep this Copilot-only rule." | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    $CopilotBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Copilot ".github/copilot-instructions.md")).Hash
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $CopilotText = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (!$CopilotText.Contains("Keep this Copilot-only rule.") -or !$CopilotText.Contains("GitHub Copilot compatibility loader")) { throw "PowerShell Copilot loader did not preserve local instructions" }
+    if (([regex]::Matches($CopilotText, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Copilot loader marker is not idempotent" }
+    $CopilotBackup = Get-ChildItem (Join-Path $Copilot ".harness-backup") -Recurse -Filter "copilot-instructions.md" -File | Select-Object -First 1
+    if (!$CopilotBackup -or (Get-FileHash -Algorithm SHA256 $CopilotBackup.FullName).Hash -ne $CopilotBefore) { throw "PowerShell Copilot loader backup does not match prior instructions" }
+    Invoke-Install $Copilot @("Copilot")
+    $CopilotText = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (([regex]::Matches($CopilotText, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Copilot loader is not idempotent" }
+
+    @(
+        "# Copilot Repository Instructions"
+        "<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->"
+        "stale"
+        "<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->"
+    ) | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $RefreshedCopilot = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (!$RefreshedCopilot.Contains("GitHub Copilot compatibility loader") -or $RefreshedCopilot.Contains("stale")) { throw "PowerShell Copilot loader was not refreshed" }
+
+    @(
+        "# GitHub Copilot compatibility loader"
+        "consumer-owned policy"
+    ) | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $ConsumerCopilot = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (!$ConsumerCopilot.Contains("consumer-owned policy") -or !$ConsumerCopilot.Contains("GitHub Copilot compatibility loader")) { throw "PowerShell consumer Copilot instructions were replaced" }
+    if (([regex]::Matches($ConsumerCopilot, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell consumer Copilot marker missing" }
+
+    "# Copilot Repository Instructions`n<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->`nstale without end" | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    $AcceptedMalformedCopilot = $false
+    try {
+        Invoke-Install $Copilot @("Copilot", "Merge")
+        $AcceptedMalformedCopilot = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("exactly one complete Copilot Harness marker pair")) { throw }
+    }
+    if ($AcceptedMalformedCopilot) { throw "PowerShell installer unexpectedly accepted malformed Copilot markers" }
+
     $ClaudeOptIn = Join-Path $Temp "claude-opt-in"
     Invoke-Install $ClaudeOptIn @("Claude", "WithEngineeringWisdom")
     if (!(Test-Path (Join-Path $ClaudeOptIn ".claude/skills/engineering-wisdom/SKILL.md"))) { throw "PowerShell Claude engineering-wisdom wrapper missing after explicit opt-in" }

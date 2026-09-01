@@ -25,6 +25,11 @@ The wrappers are marked as managed compatibility loaders. Merge refreshes a
 stale marked wrapper after backing up its prior bytes, while an unmarked
 consumer skill remains untouched.
 
+The Bash `--copilot` and PowerShell `-Copilot` options install or refresh the
+optional `.github/copilot-instructions.md` loader. It points Copilot back to
+`AGENTS.md`, preserves unmarked consumer instructions, backs up refreshes, and
+does not install a duplicate `.github/skills/` tree.
+
 Core installation:
 
 - records exact upstream bytes under `.harness-core/`;
