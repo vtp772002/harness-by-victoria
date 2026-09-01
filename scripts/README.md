@@ -23,6 +23,11 @@ External trajectory evidence is validated separately with
 fail-closed on forbidden payloads, and intentionally excluded from the
 installed core. Its contract test is part of pre-merge validation.
 
+Portable skill bundles are checked with validate-skill-bundles.py. It validates
+Agent Skills metadata, manifest closure, internal references, and parity between
+canonical .agents/skills/ bodies and Claude discovery wrappers. Its negative
+contract test is tests/skills/test-skill-bundles.sh.
+
 ## Installation
 
 - `install-harness.sh`: Bash bootstrap for the versioned Rust `harness`

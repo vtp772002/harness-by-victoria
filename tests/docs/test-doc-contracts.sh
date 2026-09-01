@@ -45,9 +45,12 @@ current_files=(
   docs/evaluation/trajectory-evidence-v1.md
   docs/decisions/0029-metadata-only-external-trajectory-evidence.md
   docs/decisions/0030-node24-github-actions-runtime.md
+  docs/decisions/0031-portable-agent-skills-bundle-contract.md
   docs/plans/active/world-class-harness.md
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
+  scripts/validate-skill-bundles.py
+  tests/skills/test-skill-bundles.sh
   tests/evaluation/test-harness-evaluator.sh
   tests/evaluation/test-trajectory-evidence.sh
   scripts/claude-skill-install-files.txt
@@ -131,8 +134,10 @@ executables=(
   tests/installer/test-install-harness-modes.sh
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
+  scripts/validate-skill-bundles.py
   tests/evaluation/test-harness-evaluator.sh
   tests/evaluation/test-trajectory-evidence.sh
+  tests/skills/test-skill-bundles.sh
 )
 for executable in "${executables[@]}"; do
   [[ -x "$root/$executable" ]] || fail "documented gate is not executable: $executable"
@@ -145,6 +150,7 @@ required_gates=(
   'tests/installer/test-install-harness-modes.sh'
   'tests/evaluation/test-harness-evaluator.sh'
   'tests/evaluation/test-trajectory-evidence.sh'
+  'python3 scripts/validate-skill-bundles.py'
   'tests/docs/test-doc-contracts.sh'
   'tests/workflow/test-repository-workflow.sh'
   'tests/workflow/test-task-authority.sh'
@@ -177,6 +183,8 @@ require README.md 'metadata-only trajectory evidence'
 require scripts/README.md 'validate-trajectory-evidence.py'
 require docs/README.md 'metadata-only boundary for external agent trajectory evidence'
 require docs/evaluation/trajectory-evidence-v1.md 'repository-harness-trajectory/v1'
+require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'Agent Skills specification'
+require scripts/README.md 'validate-skill-bundles.py'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null

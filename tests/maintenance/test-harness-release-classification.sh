@@ -20,6 +20,7 @@ positive_paths=(
   scripts/claude-engineering-wisdom-shim.md
   scripts/claude-skill-install-files.txt
   scripts/harness-install-files.txt
+  scripts/validate-skill-bundles.py
   .claude/skills/encode-invariant/SKILL.md
   scripts/install-harness.sh
   scripts/install-harness.ps1
