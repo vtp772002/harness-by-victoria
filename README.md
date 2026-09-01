@@ -1,10 +1,17 @@
-# repository-harness
+# harness-by-victoria
 
-Turn a software repository into a legible, agent-ready workspace.
+Turn a software repository into a legible, agent-ready workspace with
+`harness-by-victoria`.
 
-`repository-harness` installs a small repository protocol and a safe updater.
+`harness-by-victoria` is a repository-centered Harness distribution maintained
+in this repository. It installs a small repository protocol and a safe updater.
 The repository remains the system of record: product documents, decisions,
 plans, code, tests, CI, and runtime evidence define the work.
+
+This repository is a personal downstream of the
+[`repository-harness` upstream project](https://github.com/hoangnb24/repository-harness).
+Its local improvements, evaluation contracts, and installer hardening live
+here under the `harness-by-victoria` name.
 
 It is not a task database, story tracker, agent orchestrator, or application
 runtime.
@@ -78,14 +85,14 @@ The exact payload is declared in
 From a target repository:
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.sh?$(date +%s)" |
+curl -fsSL "https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main/scripts/install-harness.sh?$(date +%s)" |
   bash -s -- --yes
 ```
 
 On PowerShell:
 
 ```powershell
-& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/hoangnb24/repository-harness/main/scripts/install-harness.ps1"))) -Yes
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main/scripts/install-harness.ps1"))) -Yes
 ```
 
 Use `--merge` / `-Merge` to preserve existing files and add only missing
@@ -93,7 +100,10 @@ Harness paths. Use `--override` / `-Override` only when replacement is
 intentional. Use `--dry-run` / `-DryRun` to preview.
 
 The bootstrap downloads a versioned `harness` binary and checksum, verifies
-release identity, and delegates installation to that candidate.
+release identity, and delegates installation to that candidate. Until this
+repository publishes its own versioned binary release, the bootstrap's core
+binary channel remains the upstream release channel; set
+`HARNESS_CORE_CLI_BASE_URL` when using another authorized release source.
 
 ## Maintain An Installation
 
