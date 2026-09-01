@@ -434,7 +434,9 @@ function Install-HarnessCore {
         }
         if ($commandStatus -eq 0 -and !$DryRun) {
             if (Test-Path $target) {
-                [System.IO.File]::Replace($targetTemp, $target, $null)
+                $replaceBackup = Join-Path $script:BackupDir "scripts/bin/.harness-replace-backup.exe"
+                [System.IO.File]::Replace($targetTemp, $target, $replaceBackup)
+                Remove-Item -LiteralPath $replaceBackup -Force -ErrorAction SilentlyContinue
             } else {
                 Move-Item -LiteralPath $targetTemp -Destination $target
             }
