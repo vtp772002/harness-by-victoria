@@ -22,6 +22,22 @@ extract_block() {
   ' "$1"
 }
 
+extract_copilot_block() {
+  awk '
+    /<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->/ { in_block = 1 }
+    in_block { print }
+    /<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->/ { exit }
+  ' "$1"
+}
+
+extract_gemini_block() {
+  awk '
+    /<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->/ { in_block = 1 }
+    in_block { print }
+    /<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->/ { exit }
+  ' "$1"
+}
+
 assert_rejected_flag() {
   local flag="$1"
   local output="$temp/rejected-${flag#--}.out"
@@ -43,6 +59,7 @@ grep -Fq 'Harness profile: core' "$temp/fresh.out"
 [[ -f "$fresh/docs/WORKFLOW.md" ]]
 [[ -f "$fresh/docs/patterns/encoding-invariants.md" ]]
 [[ -f "$fresh/.agents/skills/encode-invariant/SKILL.md" ]]
+[[ ! -e "$fresh/GEMINI.md" ]]
 cmp -s <(extract_block "$fresh/AGENTS.md") "$root/scripts/agent-harness-block.md"
 grep -Fq 'docs/patterns/encoding-invariants.md' "$fresh/AGENTS.md"
 grep -Fq 'Does The Work Encode An Invariant?' "$fresh/docs/WORKFLOW.md"
@@ -103,6 +120,21 @@ grep -Fq 'refusing symlink for Harness path .agents/skills/engineering-wisdom/SK
   "$temp/broken-payload.out"
 [[ ! -e "$broken_sink/skill.md" ]]
 
+# Optional compatibility paths are preflighted before core installation, so a
+# malicious or accidental Gemini symlink cannot leave a partial Harness core.
+broken_optional="$temp/broken-optional"
+broken_optional_sink="$temp/broken-optional-sink"
+mkdir -p "$broken_optional" "$broken_optional_sink"
+ln -s "$broken_optional_sink/GEMINI.md" "$broken_optional/GEMINI.md"
+if install --directory "$broken_optional" --gemini --yes >"$temp/broken-optional.out" 2>&1; then
+  echo 'installer unexpectedly accepted an optional loader symlink' >&2
+  exit 1
+fi
+grep -Fq 'refusing symlink for GEMINI.md' "$temp/broken-optional.out"
+[[ ! -e "$broken_optional/AGENTS.md" ]]
+[[ ! -e "$broken_optional/docs" ]]
+[[ ! -e "$broken_optional/.harness-core" ]]
+
 # Force still overwrites an opted-in advisory file and backs up its old bytes.
 force="$temp/force"
 mkdir -p "$force/.agents/skills/engineering-wisdom"
@@ -121,8 +153,114 @@ install --directory "$claude" --claude --yes >"$temp/claude.out"
 grep -Fq 'Keep this Claude-only rule.' "$claude/CLAUDE.md"
 cmp -s <(extract_block "$claude/CLAUDE.md") "$root/scripts/claude-harness-block.md"
 [[ "$(grep -Fc '@AGENTS.md' "$claude/CLAUDE.md")" == 1 ]]
+for skill in audit-onboarding-proposal encode-invariant improve-harness onboard-repository; do
+  shim="$claude/.claude/skills/$skill/SKILL.md"
+  [[ -f "$shim" ]]
+  grep -Fq "canonical skill is" "$shim"
+  grep -Fq ".agents/skills/$skill/SKILL.md" "$shim"
+  grep -Fq '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->' "$shim"
+done
+[[ ! -e "$claude/.claude/skills/engineering-wisdom/SKILL.md" ]]
 claude_backup=$(find "$claude/.harness-backup" -name CLAUDE.md -type f | head -n 1)
 [[ "$(shasum -a 256 "$claude_backup" | awk '{ print $1 }')" == "$claude_before" ]]
+
+# A marked Claude wrapper is Harness-owned and can be refreshed during merge;
+# the stale bytes remain recoverable in the per-run backup.
+stale_wrapper="$claude/.claude/skills/encode-invariant/SKILL.md"
+printf '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->\n# Claude Code compatibility loader\nstale wrapper\n' >"$stale_wrapper"
+install --directory "$claude" --claude --merge --yes >"$temp/claude-refresh.out"
+grep -Fq 'canonical skill is' "$stale_wrapper"
+! grep -Fq 'stale wrapper' "$stale_wrapper"
+stale_wrapper_backup=$(find "$claude/.harness-backup" -path '*/.claude/skills/encode-invariant/SKILL.md' -type f | head -n 1)
+grep -Fxq 'stale wrapper' "$stale_wrapper_backup"
+
+# A consumer file that happens to reuse the old heading is not Harness-owned
+# and must remain byte-for-byte unchanged.
+consumer_skill="$claude/.claude/skills/encode-invariant/SKILL.md"
+printf '# Claude Code compatibility loader\nconsumer-owned policy\n' >"$consumer_skill"
+consumer_skill_before=$(shasum -a 256 "$consumer_skill" | awk '{ print $1 }')
+install --directory "$claude" --claude --merge --yes >"$temp/claude-consumer.out"
+consumer_skill_after=$(shasum -a 256 "$consumer_skill" | awk '{ print $1 }')
+[[ "$consumer_skill_after" == "$consumer_skill_before" ]]
+! grep -Fq 'canonical skill is' "$consumer_skill"
+
+# Copilot instructions are an opt-in compatibility loader. It appends one
+# canonical block, preserves local instructions, and backs up refreshes.
+copilot="$temp/copilot"
+mkdir -p "$copilot/.github"
+printf '# Local Copilot Rules\n\nKeep this Copilot-only rule.\n' >"$copilot/.github/copilot-instructions.md"
+copilot_before=$(shasum -a 256 "$copilot/.github/copilot-instructions.md" | awk '{ print $1 }')
+install --directory "$copilot" --copilot --yes >"$temp/copilot.out"
+grep -Fq 'Keep this Copilot-only rule.' "$copilot/.github/copilot-instructions.md"
+cmp -s <(extract_copilot_block "$copilot/.github/copilot-instructions.md") "$root/scripts/copilot-harness-block.md"
+[[ "$(grep -Fc '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$copilot/.github/copilot-instructions.md")" == 1 ]]
+copilot_backup=$(find "$copilot/.harness-backup" -path '*/.github/copilot-instructions.md' -type f | head -n 1)
+[[ "$(shasum -a 256 "$copilot_backup" | awk '{ print $1 }')" == "$copilot_before" ]]
+install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-idempotent.out"
+[[ "$(grep -Fc '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$copilot/.github/copilot-instructions.md")" == 1 ]]
+
+printf '# Copilot Repository Instructions\n<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->\nstale\n<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->\n' \
+  >"$copilot/.github/copilot-instructions.md"
+install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-refresh.out"
+grep -Fq 'GitHub Copilot compatibility loader' "$copilot/.github/copilot-instructions.md"
+! grep -Fq 'stale' "$copilot/.github/copilot-instructions.md"
+
+# An unmarked Copilot file is consumer-owned: the loader may append its block,
+# but it must not replace the consumer's existing policy.
+printf '# GitHub Copilot compatibility loader\nconsumer-owned policy\n' \
+  >"$copilot/.github/copilot-instructions.md"
+consumer_copilot_before=$(shasum -a 256 "$copilot/.github/copilot-instructions.md" | awk '{ print $1 }')
+install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-consumer.out"
+grep -Fq 'consumer-owned policy' "$copilot/.github/copilot-instructions.md"
+grep -Fq 'GitHub Copilot compatibility loader' "$copilot/.github/copilot-instructions.md"
+[[ "$(shasum -a 256 "$copilot/.github/copilot-instructions.md" | awk '{ print $1 }')" != "$consumer_copilot_before" ]]
+[[ "$(grep -Fc '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$copilot/.github/copilot-instructions.md")" == 1 ]]
+
+printf '# Copilot Repository Instructions\n<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->\nstale without end\n' \
+  >"$copilot/.github/copilot-instructions.md"
+if install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-malformed.out" 2>&1; then
+  echo 'installer unexpectedly accepted malformed Copilot markers' >&2
+  exit 1
+fi
+grep -Fq 'exactly one complete Copilot Harness marker pair' "$temp/copilot-malformed.out"
+
+# Gemini context is an opt-in compatibility loader. It uses Gemini's native
+# @-import syntax to keep AGENTS.md as the only policy source.
+gemini="$temp/gemini"
+mkdir -p "$gemini"
+printf '# Local Gemini Rules\n\nKeep this Gemini-only rule.\n' >"$gemini/GEMINI.md"
+gemini_before=$(shasum -a 256 "$gemini/GEMINI.md" | awk '{ print $1 }')
+install --directory "$gemini" --gemini --yes >"$temp/gemini.out"
+grep -Fq 'Keep this Gemini-only rule.' "$gemini/GEMINI.md"
+cmp -s <(extract_gemini_block "$gemini/GEMINI.md") "$root/scripts/gemini-harness-block.md"
+[[ "$(grep -Fc '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$gemini/GEMINI.md")" == 1 ]]
+grep -Fq '@./AGENTS.md' "$gemini/GEMINI.md"
+gemini_backup=$(find "$gemini/.harness-backup" -name GEMINI.md -type f | head -n 1)
+[[ "$(shasum -a 256 "$gemini_backup" | awk '{ print $1 }')" == "$gemini_before" ]]
+install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-idempotent.out"
+[[ "$(grep -Fc '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$gemini/GEMINI.md")" == 1 ]]
+
+printf '# Gemini CLI Repository Context\n<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->\nstale\n<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->\n' \
+  >"$gemini/GEMINI.md"
+install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-refresh.out"
+grep -Fq 'Gemini CLI compatibility loader' "$gemini/GEMINI.md"
+! grep -Fq 'stale' "$gemini/GEMINI.md"
+
+printf '# Gemini CLI compatibility loader\nconsumer-owned policy\n' >"$gemini/GEMINI.md"
+consumer_gemini_before=$(shasum -a 256 "$gemini/GEMINI.md" | awk '{ print $1 }')
+install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-consumer.out"
+grep -Fq 'consumer-owned policy' "$gemini/GEMINI.md"
+grep -Fq 'Gemini CLI compatibility loader' "$gemini/GEMINI.md"
+[[ "$(shasum -a 256 "$gemini/GEMINI.md" | awk '{ print $1 }')" != "$consumer_gemini_before" ]]
+[[ "$(grep -Fc '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$gemini/GEMINI.md")" == 1 ]]
+
+printf '# Gemini CLI Repository Context\n<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->\nstale without end\n' \
+  >"$gemini/GEMINI.md"
+if install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-malformed.out" 2>&1; then
+  echo 'installer unexpectedly accepted malformed Gemini markers' >&2
+  exit 1
+fi
+grep -Fq 'exactly one complete Gemini Harness marker pair' "$temp/gemini-malformed.out"
 
 # Merge fills missing core files but never deletes or rewrites legacy protocol
 # files, a pre-existing database, or unrelated scripts.

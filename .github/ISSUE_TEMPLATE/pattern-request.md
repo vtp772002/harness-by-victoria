@@ -16,11 +16,12 @@ labels: pattern-request, needs-triage
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Cursor
+- [ ] GitHub Copilot
+- [ ] Gemini CLI
 - [ ] Other:
 
 ## What should the agent know before changing code?
 
 
 ## What proof should show the work is done?
-
 

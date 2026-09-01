@@ -30,6 +30,32 @@ grep -Fq 'test "$(gh release view "$RELEASE_TAG"' "$release"
 ! grep -Eq '^  push:' "$release"
 ! grep -Fq 'git tag ' "$release"
 
+attestation_contract() {
+  local workflow=$1
+  local build_job
+  build_job=$(awk '
+    /^  build:/ { in_build=1 }
+    /^  publish:/ { in_build=0 }
+    in_build { print }
+  ' "$workflow")
+  grep -Fq 'contents: read' <<<"$build_job" || return 1
+  grep -Fq 'id-token: write' <<<"$build_job" || return 1
+  grep -Fq 'attestations: write' <<<"$build_job" || return 1
+  grep -Fq 'uses: actions/attest@v4' <<<"$build_job" || return 1
+  grep -Fq 'subject-path: dist/${{ matrix.binary }}' <<<"$build_job" || return 1
+}
+
+attestation_contract "$release"
+attestation_fixture=$(mktemp)
+cp "$release" "$attestation_fixture"
+sed -i.bak '/uses: actions\/attest@v4/d' "$attestation_fixture"
+if attestation_contract "$attestation_fixture"; then
+  echo "workflow unexpectedly accepted without artifact attestation" >&2
+  exit 1
+fi
+rm -f "$attestation_fixture" "$attestation_fixture.bak"
+grep -Fq 'id-token: write' "$post_merge"
+grep -Fq 'attestations: write' "$post_merge"
 grep -Fq 'harness_changed: ${{ steps.maintenance.outputs.harness_changed }}' "$post_merge"
 grep -Fq 'uses: ./.github/workflows/harness-release.yml' "$post_merge"
 grep -Fq 'harness_release_tag="harness-v$new_version"' "$post_merge"

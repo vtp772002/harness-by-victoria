@@ -30,8 +30,9 @@ labels: agent-failure, needs-triage
 - [ ] Claude Code
 - [ ] Codex
 - [ ] Cursor
+- [ ] GitHub Copilot
+- [ ] Gemini CLI
 - [ ] Other:
 
 ## Suggested improvement
-
 

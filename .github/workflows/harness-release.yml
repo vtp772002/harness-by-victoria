@@ -54,6 +54,10 @@ jobs:
     name: Build ${{ matrix.platform }}
     needs: verify
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -119,6 +123,10 @@ jobs:
           dist/${{ matrix.binary }} update --candidate --directory $root --dry-run
           dist/${{ matrix.binary }} status --directory $root
           dist/${{ matrix.binary }} doctor --directory $root
+      - name: Generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/${{ matrix.binary }}
       - uses: actions/upload-artifact@v7
         with:
           name: harness-core-${{ matrix.platform }}

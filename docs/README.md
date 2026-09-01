@@ -6,6 +6,10 @@ Start with the smallest authoritative surface.
 
 - `WORKFLOW.md`: request shape, planning, judgment, operation, validation, and
   completion.
+- `.github/copilot-instructions.md`: optional-surface loader that points
+  Copilot back to the canonical `AGENTS.md` instructions.
+- `GEMINI.md`: optional-surface loader that imports the canonical `AGENTS.md`
+  instructions for Gemini CLI.
 - `ARCHITECTURE.md`: current product, code, state, update, and ownership
   boundaries.
 - `HARNESS.md`: product principles and installed-core model.
@@ -19,6 +23,8 @@ Start with the smallest authoritative surface.
   structures.
 - `research/`: dated landscape studies and capability gap maps; research is
   informative until a lasting decision adopts a rule.
+- `RELEASE.md`: maintainer runbook for proof-first core binary publication and
+  post-publication verification.
 - `tests/evaluation/` and `scripts/evaluate-harness.sh`: deterministic,
   machine-readable behavior evidence for the current Harness-owned claims.
 - `evaluation/`: the versioned machine-readable evaluation contract and its

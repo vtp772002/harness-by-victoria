@@ -57,6 +57,13 @@ grep -Fq 'Make automation failure honest' \
 grep -Fq 'Bound cumulative state at its consumption boundary' \
   "$opt_in_target/.agents/skills/engineering-wisdom/references/heuristics.md"
 
+# The optional skill is exposed to Claude only when both opt-ins are explicit.
+claude_opt_in_target="$temp/claude-opt-in"
+install --directory "$claude_opt_in_target" --claude --with-engineering-wisdom --yes \
+  >"$temp/claude-opt-in.out"
+grep -Fq '.agents/skills/engineering-wisdom/SKILL.md' \
+  "$claude_opt_in_target/.claude/skills/engineering-wisdom/SKILL.md"
+
 # A later normal merge is non-activation, not removal.
 before=$(shasum -a 256 \
   "$opt_in_target/.agents/skills/engineering-wisdom/SKILL.md" | awk '{print $1}')
@@ -71,5 +78,9 @@ grep -Fq '[switch]$WithEngineeringWisdom' "$root/scripts/install-harness.ps1"
 grep -Fq \
   '$script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"' \
   "$root/scripts/install-harness.ps1"
+grep -Fq \
+  '$script:ClaudeSkillsPayloadManifest = "scripts/claude-skill-install-files.txt"' \
+  "$root/scripts/install-harness.ps1"
+grep -Fq 'Install-ClaudeSkills' "$root/scripts/install-harness.ps1"
 
 echo "engineering-wisdom default exclusion and explicit opt-in passed"

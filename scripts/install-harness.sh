@@ -22,9 +22,18 @@ Options:
       --claude           Also install or refresh CLAUDE.md so Claude Code
                          auto-loads the harness context. Claude Code never
                          auto-loads AGENTS.md; the shim @-imports AGENTS.md
-                         as its single policy source inside a marked block.
+                         as its single policy source inside a marked block
+                         and installs thin skill-discovery wrappers.
                          Existing CLAUDE.md files get the block appended
                          after a backup; a stale block is refreshed in place.
+      --copilot          Also install or refresh .github/copilot-instructions.md
+                         so Copilot surfaces use AGENTS.md as their single
+                         policy source. Existing files are preserved and a
+                         marked block is appended or refreshed after backup.
+      --gemini           Also install or refresh GEMINI.md so Gemini CLI uses
+                         AGENTS.md as its single policy source through its
+                         supported @-import. Existing files are preserved and
+                         a marked block is appended or refreshed after backup.
       --override         On protected-path conflict, back up and replace
                          AGENTS.md and docs/.
       --force            Overwrite existing files after backing them up.
@@ -51,6 +60,7 @@ Examples:
   curl -fsSL https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main/scripts/install-harness.sh | bash -s -- --merge --yes
   curl -fsSL https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main/scripts/install-harness.sh | bash -s -- --merge --refresh-agent-shim --yes
   curl -fsSL https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main/scripts/install-harness.sh | bash -s -- --claude --yes
+  curl -fsSL https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main/scripts/install-harness.sh | bash -s -- --gemini --yes
 EOF
 }
 
@@ -235,12 +245,163 @@ $manifest
 EOF
 }
 
+preflight_manifest_paths() {
+  local payload_manifest="$1"
+  local manifest
+  local relative
+
+  manifest="$(read_payload_manifest "$payload_manifest")"
+  while IFS= read -r relative || [ -n "$relative" ]; do
+    relative="${relative%$'\r'}"
+    case "$relative" in
+      ""|\#*)
+        continue
+        ;;
+    esac
+    validate_target_components "$relative" "Harness path $relative"
+  done <<EOF
+$manifest
+EOF
+}
+
+preflight_optional_paths() {
+  if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
+    preflight_manifest_paths "$ENGINEERING_WISDOM_PAYLOAD_MANIFEST"
+  fi
+  if [ "$INSTALL_CLAUDE_SHIM" -eq 1 ]; then
+    validate_target_components "CLAUDE.md" "CLAUDE.md"
+    preflight_manifest_paths "$CLAUDE_SKILLS_PAYLOAD_MANIFEST"
+    if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
+      validate_target_components ".claude/skills/engineering-wisdom/SKILL.md" \
+        "Harness path .claude/skills/engineering-wisdom/SKILL.md"
+    fi
+  fi
+  if [ "$INSTALL_COPILOT_INSTRUCTIONS" -eq 1 ]; then
+    validate_target_components ".github/copilot-instructions.md" \
+      ".github/copilot-instructions.md"
+  fi
+  if [ "$INSTALL_GEMINI_CONTEXT" -eq 1 ]; then
+    validate_target_components "GEMINI.md" "GEMINI.md"
+  fi
+}
+
 agent_shim_block() {
   read_source_text "scripts/agent-harness-block.md"
 }
 
 claude_shim_block() {
   read_source_text "scripts/claude-harness-block.md"
+}
+
+copilot_shim_block() {
+  read_source_text "scripts/copilot-harness-block.md"
+}
+
+gemini_shim_block() {
+  read_source_text "scripts/gemini-harness-block.md"
+}
+
+validate_copilot_markers() {
+  local target="$1"
+  local begin_marker='<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->'
+  local end_marker='<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->'
+  local begin_count end_count begin_line end_line
+  begin_count=$(grep -Fc "$begin_marker" "$target" || true)
+  end_count=$(grep -Fc "$end_marker" "$target" || true)
+  if [ "$begin_count" -eq 0 ] && [ "$end_count" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    fail "$target must contain exactly one complete Copilot Harness marker pair"
+  fi
+  begin_line=$(grep -Fn "$begin_marker" "$target" | cut -d: -f1)
+  end_line=$(grep -Fn "$end_marker" "$target" | cut -d: -f1)
+  [ "$begin_line" -lt "$end_line" ] ||
+    fail "$target Copilot Harness markers are out of order"
+}
+
+validate_gemini_markers() {
+  local target="$1"
+  local begin_marker='<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->'
+  local end_marker='<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->'
+  local begin_count end_count begin_line end_line
+  begin_count=$(grep -Fc "$begin_marker" "$target" || true)
+  end_count=$(grep -Fc "$end_marker" "$target" || true)
+  if [ "$begin_count" -eq 0 ] && [ "$end_count" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$begin_count" -ne 1 ] || [ "$end_count" -ne 1 ]; then
+    fail "$target must contain exactly one complete Gemini Harness marker pair"
+  fi
+  begin_line=$(grep -Fn "$begin_marker" "$target" | cut -d: -f1)
+  end_line=$(grep -Fn "$end_marker" "$target" | cut -d: -f1)
+  [ "$begin_line" -lt "$end_line" ] ||
+    fail "$target Gemini Harness markers are out of order"
+}
+
+copy_source_file_to() {
+  local source_relative="$1"
+  local target_relative="$2"
+  local refresh_marked="${3:-0}"
+  local target="$TARGET_DIR/$target_relative"
+
+  validate_target_components "$target_relative" "Harness path $target_relative"
+
+  if [ -e "$target" ]; then
+    if [ "$refresh_marked" -eq 1 ] &&
+       grep -Fxq '<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->' "$target"; then
+      local source_tmp
+      source_tmp="$(mktemp)"
+      write_source_file "$source_relative" "$source_tmp"
+      if cmp -s "$source_tmp" "$target"; then
+        rm -f "$source_tmp"
+        log "skip     $target_relative (Claude wrapper current)"
+        SKIPPED=$((SKIPPED + 1))
+        return
+      fi
+      if [ "$DRY_RUN" -eq 1 ]; then
+        rm -f "$source_tmp"
+        log "update   $target_relative (refresh marked Claude wrapper, backup first)"
+      else
+        local backup="$BACKUP_DIR/$target_relative"
+        mkdir -p "$(dirname "$backup")"
+        cp -p "$target" "$backup"
+        cp -p "$source_tmp" "$target"
+        rm -f "$source_tmp"
+        log "updated  $target_relative (backup: ${backup#$TARGET_DIR/})"
+      fi
+      UPDATED=$((UPDATED + 1))
+      return
+    fi
+    if [ "$CONFLICT_ACTION" = "merge" ]; then
+      log "skip     $target_relative (merge keeps existing file)"
+      SKIPPED=$((SKIPPED + 1))
+    elif [ "$FORCE" -eq 1 ]; then
+      if [ "$DRY_RUN" -eq 1 ]; then
+        log "overwrite $target_relative (backup first)"
+      else
+        local backup="$BACKUP_DIR/$target_relative"
+        mkdir -p "$(dirname "$backup")"
+        cp -p "$target" "$backup"
+        write_source_file "$source_relative" "$target"
+        log "updated  $target_relative (backup: ${backup#$TARGET_DIR/})"
+      fi
+      UPDATED=$((UPDATED + 1))
+    else
+      log "skip     $target_relative (already exists)"
+      SKIPPED=$((SKIPPED + 1))
+    fi
+    return
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "create   $target_relative"
+  else
+    mkdir -p "$(dirname "$target")"
+    write_source_file "$source_relative" "$target"
+    log "created  $target_relative"
+  fi
+  CREATED=$((CREATED + 1))
 }
 
 is_old_harness_agent_file() {
@@ -497,6 +658,225 @@ write_claude_shim() {
     CREATED=$((CREATED + 1))
   fi
   rm -f "$block_tmp"
+}
+
+backup_copilot_file() {
+  local target="$TARGET_DIR/.github/copilot-instructions.md"
+
+  [ -e "$target" ] || return 0
+  mkdir -p "$BACKUP_DIR/.github"
+  [ -e "$BACKUP_DIR/.github/copilot-instructions.md" ] && return 0
+  cp -p "$target" "$BACKUP_DIR/.github/copilot-instructions.md"
+}
+
+write_copilot_instructions() {
+  [ "$INSTALL_COPILOT_INSTRUCTIONS" -eq 1 ] || return 0
+
+  local target="$TARGET_DIR/.github/copilot-instructions.md"
+  local block_tmp current_tmp tmp
+
+  validate_target_components ".github/copilot-instructions.md" ".github/copilot-instructions.md"
+
+  if [ "$SOURCE_MODE" = "local" ] && [ -e "$target" ] &&
+     [ "$SOURCE_ROOT/.github/copilot-instructions.md" -ef "$target" ]; then
+    log "skip     .github/copilot-instructions.md (source file)"
+    SKIPPED=$((SKIPPED + 1))
+    return 0
+  fi
+
+  if [ -e "$target" ]; then
+    validate_copilot_markers "$target"
+  fi
+
+  block_tmp="$(mktemp)"
+  copilot_shim_block > "$block_tmp"
+
+  if [ -e "$target" ] &&
+     grep -Fq '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->' "$target" &&
+     grep -Fq '<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->' "$target"; then
+    current_tmp="$(mktemp)"
+    awk '
+      /<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->/ { in_block = 1 }
+      in_block { print }
+      /<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->/ { in_block = 0 }
+    ' "$target" > "$current_tmp"
+    if cmp -s "$current_tmp" "$block_tmp"; then
+      log "skip     .github/copilot-instructions.md (Harness block current)"
+      SKIPPED=$((SKIPPED + 1))
+      rm -f "$current_tmp" "$block_tmp"
+      return 0
+    fi
+    rm -f "$current_tmp"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   .github/copilot-instructions.md (refresh marked Harness block, backup first)"
+    else
+      backup_copilot_file
+      tmp="$(mktemp)"
+      awk '
+        /<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->/ {
+          while ((getline line < block_file) > 0) {
+            print line
+          }
+          in_block = 1
+          next
+        }
+        /<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->/ && in_block {
+          in_block = 0
+          next
+        }
+        !in_block { print }
+      ' block_file="$block_tmp" "$target" > "$tmp"
+      mv "$tmp" "$target"
+      log "updated  .github/copilot-instructions.md (refreshed Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/.github/copilot-instructions.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  elif [ -e "$target" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   .github/copilot-instructions.md (append Harness block, backup first)"
+    else
+      backup_copilot_file
+      {
+        printf '\n'
+        cat "$block_tmp"
+      } >> "$target"
+      log "updated  .github/copilot-instructions.md (appended Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/.github/copilot-instructions.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  else
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "create   .github/copilot-instructions.md"
+    else
+      mkdir -p "$TARGET_DIR/.github"
+      {
+        printf '# Copilot Repository Instructions\n\n'
+        cat "$block_tmp"
+      } > "$target"
+      log "created  .github/copilot-instructions.md"
+    fi
+    CREATED=$((CREATED + 1))
+  fi
+  rm -f "$block_tmp"
+}
+
+backup_gemini_file() {
+  local target="$TARGET_DIR/GEMINI.md"
+
+  [ -e "$target" ] || return 0
+  mkdir -p "$BACKUP_DIR"
+  [ -e "$BACKUP_DIR/GEMINI.md" ] && return 0
+  cp -p "$target" "$BACKUP_DIR/GEMINI.md"
+}
+
+write_gemini_context() {
+  [ "$INSTALL_GEMINI_CONTEXT" -eq 1 ] || return 0
+
+  local target="$TARGET_DIR/GEMINI.md"
+  local block_tmp current_tmp tmp
+
+  validate_target_components "GEMINI.md" "GEMINI.md"
+
+  if [ "$SOURCE_MODE" = "local" ] && [ -e "$target" ] &&
+     [ "$SOURCE_ROOT/GEMINI.md" -ef "$target" ]; then
+    log "skip     GEMINI.md (source file)"
+    SKIPPED=$((SKIPPED + 1))
+    return 0
+  fi
+
+  if [ -e "$target" ]; then
+    validate_gemini_markers "$target"
+  fi
+
+  block_tmp="$(mktemp)"
+  gemini_shim_block > "$block_tmp"
+
+  if [ -e "$target" ] &&
+     grep -Fq '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$target" &&
+     grep -Fq '<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->' "$target"; then
+    current_tmp="$(mktemp)"
+    awk '
+      /<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->/ { in_block = 1 }
+      in_block { print }
+      /<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->/ { in_block = 0 }
+    ' "$target" > "$current_tmp"
+    if cmp -s "$current_tmp" "$block_tmp"; then
+      log "skip     GEMINI.md (Harness block current)"
+      SKIPPED=$((SKIPPED + 1))
+      rm -f "$current_tmp" "$block_tmp"
+      return 0
+    fi
+    rm -f "$current_tmp"
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   GEMINI.md (refresh marked Harness block, backup first)"
+    else
+      backup_gemini_file
+      tmp="$(mktemp)"
+      awk '
+        /<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->/ {
+          while ((getline line < block_file) > 0) {
+            print line
+          }
+          in_block = 1
+          next
+        }
+        /<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->/ && in_block {
+          in_block = 0
+          next
+        }
+        !in_block { print }
+      ' block_file="$block_tmp" "$target" > "$tmp"
+      mv "$tmp" "$target"
+      log "updated  GEMINI.md (refreshed Harness block; backup: ${BACKUP_DIR#$TARGET_DIR/}/GEMINI.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  elif [ -e "$target" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "update   GEMINI.md (append Harness block, backup first)"
+    else
+      backup_gemini_file
+      {
+        printf '\n'
+        cat "$block_tmp"
+      } >> "$target"
+      log "updated  GEMINI.md (appended Harness block, backup: ${BACKUP_DIR#$TARGET_DIR/}/GEMINI.md)"
+    fi
+    UPDATED=$((UPDATED + 1))
+  else
+    if [ "$DRY_RUN" -eq 1 ]; then
+      log "create   GEMINI.md"
+    else
+      {
+        printf '# Gemini CLI Repository Context\n\n'
+        cat "$block_tmp"
+      } > "$target"
+      log "created  GEMINI.md"
+    fi
+    CREATED=$((CREATED + 1))
+  fi
+  rm -f "$block_tmp"
+}
+
+install_claude_skills() {
+  [ "$INSTALL_CLAUDE_SHIM" -eq 1 ] || return 0
+
+  local manifest relative
+  manifest="$(read_payload_manifest "$CLAUDE_SKILLS_PAYLOAD_MANIFEST")"
+  while IFS= read -r relative || [ -n "$relative" ]; do
+    relative="${relative%$'\r'}"
+    case "$relative" in
+      ""|\#*) continue ;;
+    esac
+    copy_source_file_to "$relative" "$relative" 1
+  done <<EOF
+$manifest
+EOF
+  if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
+    copy_source_file_to \
+      "scripts/claude-engineering-wisdom-shim.md" \
+      ".claude/skills/engineering-wisdom/SKILL.md" \
+      1
+  fi
 }
 
 detect_cli_platform() {
@@ -785,6 +1165,8 @@ DRY_RUN=0
 INSTALL_ENGINEERING_WISDOM=0
 REFRESH_AGENT_SHIM=0
 INSTALL_CLAUDE_SHIM=0
+INSTALL_COPILOT_INSTRUCTIONS=0
+INSTALL_GEMINI_CONTEXT=0
 REQUESTED_CONFLICT_ACTION=""
 POSITIONAL_TARGET=""
 
@@ -817,6 +1199,14 @@ while [ "$#" -gt 0 ]; do
       ;;
     --claude)
       INSTALL_CLAUDE_SHIM=1
+      shift
+      ;;
+    --copilot)
+      INSTALL_COPILOT_INSTRUCTIONS=1
+      shift
+      ;;
+    --gemini)
+      INSTALL_GEMINI_CONTEXT=1
       shift
       ;;
     --override)
@@ -872,6 +1262,7 @@ CORE_SOURCE_BASE_URL="${HARNESS_CORE_SOURCE_BASE_URL:-https://raw.githubusercont
 CORE_SOURCE_BASE_URL="${CORE_SOURCE_BASE_URL%/}"
 PAYLOAD_MANIFEST="scripts/harness-install-files.txt"
 ENGINEERING_WISDOM_PAYLOAD_MANIFEST="scripts/engineering-wisdom-install-files.txt"
+CLAUDE_SKILLS_PAYLOAD_MANIFEST="scripts/claude-skill-install-files.txt"
 
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../AGENTS.md" ] && [ -f "$SCRIPT_DIR/../docs/HARNESS.md" ]; then
   SOURCE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
@@ -913,6 +1304,7 @@ else
 fi
 
 if [ -d "$TARGET_DIR" ]; then
+  preflight_optional_paths
   check_protected_target_paths
 fi
 
@@ -928,6 +1320,16 @@ if [ "$INSTALL_ENGINEERING_WISDOM" -eq 1 ]; then
 else
   log "Engineering wisdom: excluded"
 fi
+if [ "$INSTALL_COPILOT_INSTRUCTIONS" -eq 1 ]; then
+  log "Copilot instructions: included (explicit opt-in)"
+else
+  log "Copilot instructions: excluded"
+fi
+if [ "$INSTALL_GEMINI_CONTEXT" -eq 1 ]; then
+  log "Gemini context: included (explicit opt-in)"
+else
+  log "Gemini context: excluded"
+fi
 log "Target project: $TARGET_DIR"
 
 install_harness_core
@@ -935,6 +1337,9 @@ install_harness_core
 install_engineering_wisdom
 refresh_agent_shim
 write_claude_shim
+write_copilot_instructions
+write_gemini_context
+install_claude_skills
 
 log ""
 log "Done. Created: $CREATED, updated: $UPDATED, skipped: $SKIPPED."

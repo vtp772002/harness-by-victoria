@@ -102,7 +102,26 @@ Out of scope:
       the hosted Linux and Windows jobs on the personal repository.
 - [x] Close the Bash/PowerShell Claude Code shim parity gap using the canonical
       marked-block, preservation, backup, and idempotence contract.
+- [x] Add optional Claude Code skill-discovery wrappers while keeping
+      `.agents/skills/` as the single canonical policy source; refresh marked
+      wrappers safely with backups on both installers.
 - [x] Run full validation and record measured limits for this phase.
+- [x] Add signed GitHub artifact provenance to every platform release binary,
+      with a workflow contract and negative proof.
+- [x] Close review-found Agent Skills parser and wrapper-ownership gaps with
+      fail-closed parsing and cross-platform consumer-preservation proof.
+- [x] Add the standalone core release runbook, including exact source
+      preconditions, five-platform proof order, attestation verification, and
+      recovery rules for the first repository-owned binary channel.
+- [x] Add an optional, marker-owned GitHub Copilot instruction loader while
+      preserving `AGENTS.md` as the only policy source; prove creation,
+      refresh, backup, idempotence, and malformed-marker rejection.
+- [x] Add an optional, marker-owned Gemini CLI context loader using Gemini's
+      native `@./AGENTS.md` import while preserving `AGENTS.md` as the only
+      policy source; prove equivalent cross-platform lifecycle behavior.
+- [x] Preflight all selected optional loader and add-on paths before core
+      installation so symlink or reparse-point failures cannot leave a partial
+      core installation.
 
 ## Decisions
 
@@ -117,10 +136,28 @@ Out of scope:
   optional metadata-only external trajectory adapter. The external runner and
   all raw prompts, transcripts, content, tool payloads, credentials, tokens,
   telemetry, and retention remain outside Harness.
+- 2026-09-01: Keep `.agents/skills/` canonical and add thin `.claude/skills/`
+  discovery wrappers because Claude Code and Cursor use different documented
+  skill roots. Install the wrappers only with `--claude` / `-Claude`; expose
+  the engineering-wisdom wrapper only with both explicit add-on selections.
 - 2026-09-01: After the first GitHub Actions run exposed Node 20 deprecation
   warnings, adopt Decision 0030: checkout v7, upload-artifact v7, and
   download-artifact v8 across workflows; do not alter merge policy or branch
   protection through this compatibility fix.
+- 2026-09-01: Adopt Decision 0032: attest each release binary with
+  `actions/attest@v4` after checksum and lifecycle proof, while retaining
+  SHA-256 sidecars and leaving offline/independent publisher trust and SBOM
+  policy out of scope.
+- 2026-09-01: Treat the explicit Claude wrapper marker and the repository's
+  scalar frontmatter subset as ownership and parsing boundaries. Refresh never
+  infers ownership from a generic heading, and malformed flow/quoted values
+  fail with a field-level diagnostic.
+- 2026-09-01: Adopt Decision 0033: keep `AGENTS.md` canonical and expose
+  Copilot's repository-wide instruction surface only through an explicit,
+  marker-owned loader; do not create `.github/skills/` duplicates.
+- 2026-09-01: Adopt Decision 0034: keep `AGENTS.md` canonical and expose
+  Gemini CLI's repository context only through an explicit, marker-owned
+  `GEMINI.md` import loader; do not create a duplicate Gemini skill tree.
 
 ## Validation
 
@@ -134,11 +171,44 @@ Out of scope:
 - Cross-client proof: Bash and PowerShell now expose equivalent Claude Code shim
   installation paths; the PowerShell contract covers preservation, backup,
   idempotence, and malformed-marker rejection.
+- Cross-client skill proof: Bash and PowerShell consume the same Claude wrapper
+  manifest, preserve unmarked consumer skills, refresh marked wrappers with
+  backups, and keep engineering-wisdom discovery explicit-only.
 - Hosted CI proof: run `33488461227` passed both the repository contract on
   Ubuntu and the PowerShell installer contract on Windows after the action
   migration; no Node 20 deprecation warning was emitted by the updated actions.
   Follow-up run `33490034908` passed both jobs on the PowerShell Claude shim
   parity revision, including repeated install/refresh behavior.
+  Run `33492276378` passed both jobs on commit `f5585e6`, including Claude
+  skill-discovery wrapper installation, metadata parity, refresh, and backup
+  coverage.
+- Local workflow proof: the release contract now verifies the attestation
+  action, subject path, least-privilege build permissions, and reusable caller
+  permissions; a temporary fixture with the action removed fails the intended
+  contract.
+- Local review-fix proof: the Agent Skills validator rejects malformed quoted,
+  flow-collection, and flow-mapping metadata; Bash preserves a consumer skill
+  that reuses the old wrapper heading; PowerShell has the equivalent hosted
+  regression.
+- Hosted review-fix proof: run `33497348728` passed both Ubuntu and Windows
+  jobs on commit `89800e8`, including the new parser and wrapper-ownership
+  tests.
+- Hosted documentation proof: run `33498485724` passed both Ubuntu and Windows
+  jobs on commit `6dbed2b`, including the standalone release runbook contract.
+- Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
+  adding the Claude skill manifest, metadata-drift checks, stale-wrapper
+  refresh tests, and release classification coverage.
+- Local Copilot proof: Bash and PowerShell installer contracts cover optional
+  creation, consumer-text preservation, marked-block refresh, backup,
+  idempotence, and malformed-marker rejection; the full pre-merge protocol
+  passes locally after the Windows fixture correction.
+- Local Gemini proof: the Bash installer contract covers optional creation,
+  native `@./AGENTS.md` import, consumer-text preservation, marked-block
+  refresh, backup, idempotence, and malformed-marker rejection. PowerShell
+  coverage is included for hosted Windows execution.
+- Local optional-path safety proof: Bash rejects a Gemini symlink before any
+  `AGENTS.md`, `docs/`, or `.harness-core/` path is created; PowerShell has the
+  equivalent junction regression for hosted Windows execution.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result
@@ -150,7 +220,11 @@ metadata-only external trajectory validator. Each scorecard report records
 reproduction metadata and retains bounded failure diagnostics. Bootstrap-
 managed writes now fail closed on broken symlinks and reparse points. Hosted
 CI now runs the Node 24-compatible action majors on both Linux and Windows.
-The plan remains active for future authority-gated work such as wiring a specific
-external runner, defining a machine-facing CLI error contract, or adding
-additional client adapters; none of those choices are implied by the current
-adapter.
+The repository also exposes optional Copilot and Gemini instruction bridges
+while keeping `AGENTS.md` canonical, and the README/docs now describe the
+supported Codex, Claude Code, GitHub Copilot, Gemini CLI, and Cursor discovery
+paths. The plan
+remains active for future authority-gated work such as wiring a specific
+external runner, defining a machine-facing CLI error contract, publishing and
+migrating to the repository-owned binary channel, or adding additional client
+adapters; none of those choices are implied by the current adapters.

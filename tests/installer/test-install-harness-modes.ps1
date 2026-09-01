@@ -87,11 +87,139 @@ try {
     $ClaudeBegin = ([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count
     $ClaudeEnd = ([regex]::Matches($ClaudeText, '<!-- HARNESS:END -->')).Count
     if ($ClaudeBegin -ne 1 -or $ClaudeEnd -ne 1) { throw "PowerShell Claude shim marker count is not idempotent" }
+    foreach ($Skill in @("audit-onboarding-proposal", "encode-invariant", "improve-harness", "onboard-repository")) {
+        $ClaudeSkill = Join-Path $Claude ".claude/skills/$Skill/SKILL.md"
+        if (!(Test-Path $ClaudeSkill)) { throw "PowerShell Claude skill wrapper missing: $Skill" }
+        $ClaudeSkillText = Get-Content -Raw $ClaudeSkill
+        if (!$ClaudeSkillText.Contains(".agents/skills/$Skill/SKILL.md")) { throw "PowerShell Claude skill wrapper is not canonical: $Skill" }
+        if (!$ClaudeSkillText.Contains("<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->")) { throw "PowerShell Claude skill wrapper marker missing: $Skill" }
+    }
+    if (Test-Path (Join-Path $Claude ".claude/skills/engineering-wisdom/SKILL.md")) { throw "engineering wisdom was not kept explicit-only" }
     $ClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "CLAUDE.md" -File | Select-Object -First 1
     if (!$ClaudeBackup -or (Get-FileHash -Algorithm SHA256 $ClaudeBackup.FullName).Hash -ne $ClaudeBefore) { throw "PowerShell Claude shim backup does not match prior CLAUDE.md" }
     Invoke-Install $Claude @("Merge", "Claude")
     $ClaudeText = Get-Content -Raw (Join-Path $Claude "CLAUDE.md")
     if (([regex]::Matches($ClaudeText, '<!-- HARNESS:BEGIN -->')).Count -ne 1) { throw "PowerShell Claude shim is not idempotent" }
+
+    $StaleClaudeSkill = Join-Path $Claude ".claude/skills/encode-invariant/SKILL.md"
+    @(
+        "<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->"
+        "# Claude Code compatibility loader"
+        "stale wrapper"
+    ) | Set-Content $StaleClaudeSkill
+    Invoke-Install $Claude @("Merge", "Claude")
+    $RefreshedClaudeSkill = Get-Content -Raw $StaleClaudeSkill
+    if (!$RefreshedClaudeSkill.Contains("canonical skill is") -or $RefreshedClaudeSkill.Contains("stale wrapper")) { throw "PowerShell Claude skill wrapper was not refreshed from the canonical source" }
+    $StaleClaudeBackup = Get-ChildItem (Join-Path $Claude ".harness-backup") -Recurse -Filter "SKILL.md" -File | Where-Object { $_.FullName -like "*encode-invariant*" } | Select-Object -First 1
+    if (!$StaleClaudeBackup -or !(Get-Content -Raw $StaleClaudeBackup.FullName).Contains("stale wrapper")) { throw "PowerShell Claude skill wrapper backup is missing stale bytes" }
+
+    $ConsumerClaudeSkill = Join-Path $Claude ".claude/skills/encode-invariant/SKILL.md"
+    @(
+        "# Claude Code compatibility loader"
+        "consumer-owned policy"
+    ) | Set-Content $ConsumerClaudeSkill
+    $ConsumerClaudeSkillBefore = (Get-FileHash -Algorithm SHA256 $ConsumerClaudeSkill).Hash
+    Invoke-Install $Claude @("Merge", "Claude")
+    $ConsumerClaudeSkillAfter = (Get-FileHash -Algorithm SHA256 $ConsumerClaudeSkill).Hash
+    if ($ConsumerClaudeSkillAfter -ne $ConsumerClaudeSkillBefore) { throw "PowerShell consumer skill with legacy heading was overwritten" }
+    if ((Get-Content -Raw $ConsumerClaudeSkill).Contains("canonical skill is")) { throw "PowerShell consumer skill was treated as a marked wrapper" }
+
+    # Copilot instructions are an opt-in compatibility loader. It appends one
+    # canonical block, preserves local instructions, and backs up refreshes.
+    $Copilot = Join-Path $Temp "copilot"
+    New-Item -ItemType Directory -Force (Join-Path $Copilot ".github") | Out-Null
+    "# Local Copilot Rules`n`nKeep this Copilot-only rule." | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    $CopilotBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Copilot ".github/copilot-instructions.md")).Hash
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $CopilotText = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (!$CopilotText.Contains("Keep this Copilot-only rule.") -or !$CopilotText.Contains("GitHub Copilot compatibility loader")) { throw "PowerShell Copilot loader did not preserve local instructions" }
+    if (([regex]::Matches($CopilotText, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Copilot loader marker is not idempotent" }
+    $CopilotBackup = Get-ChildItem (Join-Path $Copilot ".harness-backup") -Recurse -Filter "copilot-instructions.md" -File | Select-Object -First 1
+    if (!$CopilotBackup -or (Get-FileHash -Algorithm SHA256 $CopilotBackup.FullName).Hash -ne $CopilotBefore) { throw "PowerShell Copilot loader backup does not match prior instructions" }
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $CopilotText = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (([regex]::Matches($CopilotText, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Copilot loader is not idempotent" }
+
+    @(
+        "# Copilot Repository Instructions"
+        "<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->"
+        "stale"
+        "<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->"
+    ) | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $RefreshedCopilot = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (!$RefreshedCopilot.Contains("GitHub Copilot compatibility loader") -or $RefreshedCopilot.Contains("stale")) { throw "PowerShell Copilot loader was not refreshed" }
+
+    @(
+        "# GitHub Copilot compatibility loader"
+        "consumer-owned policy"
+    ) | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    Invoke-Install $Copilot @("Copilot", "Merge")
+    $ConsumerCopilot = Get-Content -Raw (Join-Path $Copilot ".github/copilot-instructions.md")
+    if (!$ConsumerCopilot.Contains("consumer-owned policy") -or !$ConsumerCopilot.Contains("GitHub Copilot compatibility loader")) { throw "PowerShell consumer Copilot instructions were replaced" }
+    if (([regex]::Matches($ConsumerCopilot, '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell consumer Copilot marker missing" }
+
+    "# Copilot Repository Instructions`n<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->`nstale without end" | Set-Content (Join-Path $Copilot ".github/copilot-instructions.md")
+    $AcceptedMalformedCopilot = $false
+    try {
+        Invoke-Install $Copilot @("Copilot", "Merge")
+        $AcceptedMalformedCopilot = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("exactly one complete Copilot Harness marker pair")) { throw }
+    }
+    if ($AcceptedMalformedCopilot) { throw "PowerShell installer unexpectedly accepted malformed Copilot markers" }
+
+    # Gemini context is an opt-in compatibility loader. It uses Gemini's
+    # native @-import syntax to keep AGENTS.md as the only policy source.
+    $Gemini = Join-Path $Temp "gemini"
+    New-Item -ItemType Directory -Force $Gemini | Out-Null
+    "# Local Gemini Rules`n`nKeep this Gemini-only rule.`n" | Set-Content (Join-Path $Gemini "GEMINI.md")
+    $GeminiBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Gemini "GEMINI.md")).Hash
+    Invoke-Install $Gemini @("Gemini")
+    $GeminiText = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (!$GeminiText.Contains("Keep this Gemini-only rule.") -or !$GeminiText.Contains("Gemini CLI compatibility loader")) { throw "PowerShell Gemini loader did not preserve local instructions" }
+    if (!$GeminiText.Contains("@./AGENTS.md")) { throw "PowerShell Gemini loader did not import AGENTS.md" }
+    if (([regex]::Matches($GeminiText, '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Gemini loader marker is not idempotent" }
+    $GeminiBackup = Get-ChildItem (Join-Path $Gemini ".harness-backup") -Recurse -Filter "GEMINI.md" -File | Select-Object -First 1
+    if (!$GeminiBackup -or (Get-FileHash -Algorithm SHA256 $GeminiBackup.FullName).Hash -ne $GeminiBefore) { throw "PowerShell Gemini loader backup does not match prior instructions" }
+    Invoke-Install $Gemini @("Gemini", "Merge")
+    $GeminiText = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (([regex]::Matches($GeminiText, '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Gemini loader is not idempotent" }
+
+    @(
+        "# Gemini CLI Repository Context"
+        "<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->"
+        "stale"
+        "<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->"
+    ) | Set-Content (Join-Path $Gemini "GEMINI.md")
+    Invoke-Install $Gemini @("Gemini", "Merge")
+    $RefreshedGemini = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (!$RefreshedGemini.Contains("Gemini CLI compatibility loader") -or $RefreshedGemini.Contains("stale")) { throw "PowerShell Gemini loader was not refreshed" }
+
+    @(
+        "# Gemini CLI compatibility loader"
+        "consumer-owned policy"
+    ) | Set-Content (Join-Path $Gemini "GEMINI.md")
+    $ConsumerGeminiBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Gemini "GEMINI.md")).Hash
+    Invoke-Install $Gemini @("Gemini", "Merge")
+    $ConsumerGemini = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (!$ConsumerGemini.Contains("consumer-owned policy") -or !$ConsumerGemini.Contains("Gemini CLI compatibility loader")) { throw "PowerShell consumer Gemini instructions were replaced" }
+    if ((Get-FileHash -Algorithm SHA256 (Join-Path $Gemini "GEMINI.md")).Hash -eq $ConsumerGeminiBefore) { throw "PowerShell Gemini loader did not append to consumer instructions" }
+    if (([regex]::Matches($ConsumerGemini, '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell consumer Gemini marker missing" }
+
+    "# Gemini CLI Repository Context`n<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->`nstale without end" | Set-Content (Join-Path $Gemini "GEMINI.md")
+    $AcceptedMalformedGemini = $false
+    try {
+        Invoke-Install $Gemini @("Gemini", "Merge")
+        $AcceptedMalformedGemini = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("exactly one complete Gemini Harness marker pair")) { throw }
+    }
+    if ($AcceptedMalformedGemini) { throw "PowerShell installer unexpectedly accepted malformed Gemini markers" }
+
+    $ClaudeOptIn = Join-Path $Temp "claude-opt-in"
+    Invoke-Install $ClaudeOptIn @("Claude", "WithEngineeringWisdom")
+    if (!(Test-Path (Join-Path $ClaudeOptIn ".claude/skills/engineering-wisdom/SKILL.md"))) { throw "PowerShell Claude engineering-wisdom wrapper missing after explicit opt-in" }
 
     $MalformedClaude = Join-Path $Temp "malformed-claude"
     New-Item -ItemType Directory -Force $MalformedClaude | Out-Null
@@ -211,6 +339,24 @@ try {
     }
     if ($AcceptedSymlink) { throw "installer unexpectedly followed a scripts reparse point" }
     if (Get-ChildItem $SymlinkSink -Force | Select-Object -First 1) { throw "installer wrote through scripts reparse point" }
+
+    # Optional compatibility paths are preflighted before core installation,
+    # so a Gemini reparse point cannot leave a partial Harness core.
+    $OptionalReparseTarget = Join-Path $Temp "optional-reparse"
+    $OptionalReparseSink = Join-Path $Temp "optional-reparse-sink"
+    New-Item -ItemType Directory -Force $OptionalReparseTarget, $OptionalReparseSink | Out-Null
+    New-Item -ItemType Junction -Path (Join-Path $OptionalReparseTarget "GEMINI.md") -Target $OptionalReparseSink | Out-Null
+    $AcceptedOptionalReparse = $false
+    try {
+        Invoke-Install $OptionalReparseTarget @("Gemini")
+        $AcceptedOptionalReparse = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("refusing symlink or reparse point for GEMINI.md")) { throw }
+    }
+    if ($AcceptedOptionalReparse) { throw "installer unexpectedly accepted an optional Gemini reparse point" }
+    foreach ($PartialPath in @("AGENTS.md", "docs", ".harness-core")) {
+        if (Test-Path (Join-Path $OptionalReparseTarget $PartialPath)) { throw "optional reparse preflight left partial core path: $PartialPath" }
+    }
 
     # Remote bootstrap validates both checksum and release/binary identity.
     $RemoteInstaller = Join-Path $Temp "install-harness.ps1"

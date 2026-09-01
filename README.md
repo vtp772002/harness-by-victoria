@@ -5,15 +5,17 @@
 Turn a software repository into a legible, agent-ready workspace with
 `harness-by-victoria`.
 
-`harness-by-victoria` is a repository-centered Harness distribution maintained
-in this repository. It installs a small repository protocol and a safe updater.
+This is the standalone `harness-by-victoria` repository: a repository-centered
+Harness distribution maintained here, with its source, installer identity, and
+product documentation owned by this project. It installs a small repository
+protocol and a safe updater.
 The repository remains the system of record: product documents, decisions,
 plans, code, tests, CI, and runtime evidence define the work.
 
-This repository is a personal downstream of the
+For lineage, this repository started from the
 [`repository-harness` upstream project](https://github.com/hoangnb24/repository-harness).
-Its local improvements, evaluation contracts, and installer hardening live
-here under the `harness-by-victoria` name.
+The maintained product identity, improvements, evaluation contracts, and
+installer hardening are now owned here under the `harness-by-victoria` name.
 
 It is not a task database, story tracker, agent orchestrator, or application
 runtime.
@@ -82,6 +84,26 @@ processes.
 The exact payload is declared in
 [`scripts/harness-install-files.txt`](scripts/harness-install-files.txt).
 
+Claude Code compatibility is deliberately thin. The committed
+`.claude/skills/` files are discovery wrappers; the canonical skill bodies
+remain under `.agents/skills/`, so there is only one policy source. They are
+not part of the default core payload. Passing `--claude` / `-Claude` installs
+the four core wrappers, while `--claude --with-engineering-wisdom` /
+`-Claude -WithEngineeringWisdom` also installs the optional engineering-wisdom
+wrapper. Managed wrappers can be refreshed safely; an existing unmarked
+consumer skill is never silently replaced.
+
+GitHub Copilot and compatible VS Code surfaces can use the same authority
+through the optional `--copilot` / `-Copilot` loader. It creates or refreshes a
+thin `.github/copilot-instructions.md` pointer to `AGENTS.md`, preserving
+consumer instructions and keeping `.agents/skills/` as the single canonical
+skill location. No `.github/skills/` duplicate is installed.
+
+Gemini CLI can use the same authority through the optional `--gemini` /
+`-Gemini` loader. It creates or refreshes a thin `GEMINI.md` file using
+Gemini's native `@./AGENTS.md` import, preserving consumer instructions and
+keeping `.agents/skills/` as the single canonical skill location.
+
 ## Install
 
 From a target repository:
@@ -102,14 +124,39 @@ Harness paths. Use `--override` / `-Override` only when replacement is
 intentional. Use `--dry-run` / `-DryRun` to preview.
 
 For Claude Code, add `--claude` to the Bash installer or `-Claude` to the
-PowerShell installer. Both options preserve local `CLAUDE.md` rules and import
-the canonical `AGENTS.md` instructions through one managed block.
+PowerShell installer. Both options preserve local `CLAUDE.md` rules, import
+the canonical `AGENTS.md` instructions through one managed block, and install
+the thin skill-discovery wrappers described above. Add the engineering-wisdom
+flag only when that advisory pack is explicitly wanted.
+
+For GitHub Copilot, add `--copilot` to the Bash installer or `-Copilot` to the
+PowerShell installer. The loader is opt-in and only provides discovery; it does
+not grant tool permissions, sandboxing, or merge authority.
+
+For Gemini CLI, add `--gemini` to the Bash installer or `-Gemini` to the
+PowerShell installer. The loader is opt-in and only provides discovery; it does
+not grant tool permissions, sandboxing, or merge authority.
 
 The bootstrap downloads a versioned `harness` binary and checksum, verifies
 release identity, and delegates installation to that candidate. Until this
 repository publishes its own versioned binary release, the bootstrap's core
 binary channel remains the upstream release channel; set
 `HARNESS_CORE_CLI_BASE_URL` when using another authorized release source.
+
+Published core binaries are also intended to carry GitHub artifact
+attestations from the five-platform release build. After downloading a binary,
+verify its provenance against this repository:
+
+```bash
+gh attestation verify ./harness-linux-x64 \
+  -R vtp772002/harness-by-victoria
+```
+
+The attestation contract is implemented, but hosted verification remains
+pending until this repository publishes its first own core release.
+
+Maintainers should use the [core release runbook](docs/RELEASE.md) when the
+first repository-owned binary channel is ready.
 
 ## Maintain An Installation
 

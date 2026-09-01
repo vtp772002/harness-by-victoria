@@ -38,10 +38,10 @@ control plane.
 | Capability | Current evidence in this repository | Assessment |
 | --- | --- | --- |
 | Repository authority and small context | `AGENTS.md`, `docs/WORKFLOW.md`, `docs/README.md`, product/decision/plan maps | Strong |
-| Portable skills and client shims | `.agents/skills/`, optional Claude shim, exact embedded manifest | Strong for current supported clients; broader client adapters are not established |
+| Portable skills and client shims | Canonical `.agents/skills/`, thin `.claude/skills/` discovery wrappers, optional Claude, Copilot, and Gemini instruction loaders, exact installer manifests | Strong for Codex, Claude Code, GitHub Copilot, Gemini CLI, and Cursor's documented standard paths; other client adapters are not established |
 | Human-owned ambiguity boundary | Workflow authority gate and task-authority contract | Strong |
 | Safe maintenance and recovery | Rust transactions, three-way merge, conflict staging, drift detection, rollback, symlink checks | Strong |
-| Release identity and byte integrity | Versioned release pointer, binary version check, SHA-256 sidecar, exact asset inventory | Strong integrity; independent publisher trust root remains explicitly absent |
+| Release identity and byte integrity | Versioned release pointer, binary version check, SHA-256 sidecar, exact asset inventory, and Decision 0032 GitHub artifact provenance | Strong hosted integrity and provenance; independent publisher trust root remains explicitly absent and own-release attestation is not yet observed |
 | Agent trajectory evaluation | Deterministic workflow fixtures, the v1 scorecard, and an optional metadata-only trajectory validator cover Harness-owned behavior; no LLM action trace is collected | Partial by design; the adapter validates structure and proof ordering, not model quality or raw action traces |
 | Final outcome evaluation | Rust and repository contracts prove Harness-owned outcomes | Strong for Harness itself; consumer application outcomes remain out of scope |
 | Runtime sandbox and secret isolation | Not owned by this repository | Deliberately external; must not be implied by install |
@@ -80,17 +80,21 @@ is a decision-shaped gap, not permission to guess.
 
 ### P1: Cross-client portability audit
 
-The current product supports the canonical `AGENTS.md` entrypoint and an
-optional Claude shim. Survey additional clients only when their file format,
-precedence, and installation ownership are authoritative; do not scatter
-duplicate instructions that can drift.
+The current product supports the canonical `AGENTS.md` entrypoint, an optional
+Claude shim and skill-discovery wrappers, and optional GitHub Copilot and
+Gemini CLI instruction loaders. Both loaders point back to `AGENTS.md` and do
+not create duplicate skill trees. Cursor surfaces that directly consume
+`AGENTS.md` and `.agents/skills/` need no extra copy. Survey additional clients
+only when their file format, precedence, and installation ownership are
+authoritative; do not scatter duplicate instructions that can drift.
 
 ### P2: Independent release trust root
 
 The architecture explicitly states that SHA-256 is relative to the selected
-GitHub release and not an independent publisher-compromise defense. A signed
-channel, key rotation, revocation, and recovery policy require a new accepted
-decision.
+GitHub release and not an independent publisher-compromise defense. Decision
+0032 adds hosted GitHub artifact provenance, but a publisher-controlled signed
+channel, key rotation, revocation, and recovery policy still require a new
+accepted decision.
 
 ### P2: Runtime observability adapter
 

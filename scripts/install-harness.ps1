@@ -8,6 +8,8 @@ param(
     [switch]$WithEngineeringWisdom,
     [switch]$RefreshAgentShim,
     [switch]$Claude,
+    [switch]$Copilot,
+    [switch]$Gemini,
     [switch]$Override,
     [switch]$Force,
     [switch]$DryRun
@@ -131,6 +133,31 @@ function Assert-NoReparseComponents([string]$Relative, [string]$Label) {
     }
 }
 
+function Assert-OptionalTargetPaths {
+    if ($WithEngineeringWisdom) {
+        foreach ($file in (Get-PayloadFiles $script:EngineeringWisdomPayloadManifest)) {
+            Assert-NoReparseComponents $file "Harness path $file"
+        }
+    }
+    if ($Claude) {
+        Assert-NoReparseComponents "CLAUDE.md" "CLAUDE.md"
+        foreach ($file in (Get-PayloadFiles $script:ClaudeSkillsPayloadManifest)) {
+            Assert-NoReparseComponents $file "Harness path $file"
+        }
+        if ($WithEngineeringWisdom) {
+            Assert-NoReparseComponents ".claude/skills/engineering-wisdom/SKILL.md" `
+                "Harness path .claude/skills/engineering-wisdom/SKILL.md"
+        }
+    }
+    if ($Copilot) {
+        Assert-NoReparseComponents ".github/copilot-instructions.md" `
+            ".github/copilot-instructions.md"
+    }
+    if ($Gemini) {
+        Assert-NoReparseComponents "GEMINI.md" "GEMINI.md"
+    }
+}
+
 function Copy-HarnessFile([string]$Relative) {
     $target = Join-Path $script:TargetDir $Relative
     Assert-NoReparseComponents $Relative "Harness path $Relative"
@@ -174,6 +201,46 @@ function Get-AgentShimBlock {
 
 function Get-ClaudeShimBlock {
     return (Read-SourceText "scripts/claude-harness-block.md").TrimEnd("`r", "`n")
+}
+
+function Get-CopilotShimBlock {
+    return (Read-SourceText "scripts/copilot-harness-block.md").TrimEnd("`r", "`n")
+}
+
+function Get-GeminiShimBlock {
+    return (Read-SourceText "scripts/gemini-harness-block.md").TrimEnd("`r", "`n")
+}
+
+function Assert-CopilotMarkers([string]$Content, [string]$Label) {
+    $beginMarker = '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->'
+    $endMarker = '<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->'
+    $begin = [regex]::Matches($Content, [regex]::Escape($beginMarker))
+    $end = [regex]::Matches($Content, [regex]::Escape($endMarker))
+    if ($begin.Count -eq 0 -and $end.Count -eq 0) {
+        return
+    }
+    if ($begin.Count -ne 1 -or $end.Count -ne 1) {
+        Fail "$Label must contain exactly one complete Copilot Harness marker pair"
+    }
+    if ($begin[0].Index -ge $end[0].Index) {
+        Fail "$Label Copilot Harness markers are out of order"
+    }
+}
+
+function Assert-GeminiMarkers([string]$Content, [string]$Label) {
+    $beginMarker = '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->'
+    $endMarker = '<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->'
+    $begin = [regex]::Matches($Content, [regex]::Escape($beginMarker))
+    $end = [regex]::Matches($Content, [regex]::Escape($endMarker))
+    if ($begin.Count -eq 0 -and $end.Count -eq 0) {
+        return
+    }
+    if ($begin.Count -ne 1 -or $end.Count -ne 1) {
+        Fail "$Label must contain exactly one complete Gemini Harness marker pair"
+    }
+    if ($begin[0].Index -ge $end[0].Index) {
+        Fail "$Label Gemini Harness markers are out of order"
+    }
 }
 
 function Assert-HarnessMarkers([string]$Content, [string]$Label) {
@@ -309,6 +376,232 @@ function Write-ClaudeShim {
         $script:Updated++
     } else {
         $script:Created++
+    }
+}
+
+function Backup-CopilotInstructions {
+    $target = Join-Path $script:TargetDir ".github/copilot-instructions.md"
+    if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+        return
+    }
+    New-Item -ItemType Directory -Force -Path (Join-Path $script:BackupDir ".github") | Out-Null
+    $backup = Join-Path $script:BackupDir ".github/copilot-instructions.md"
+    if (!(Test-Path -LiteralPath $backup)) {
+        Copy-Item -LiteralPath $target -Destination $backup
+    }
+}
+
+function Write-CopilotInstructions {
+    if (!$Copilot) {
+        return
+    }
+
+    $target = Join-Path $script:TargetDir ".github/copilot-instructions.md"
+    Assert-NoReparseComponents ".github/copilot-instructions.md" ".github/copilot-instructions.md"
+    $sourceTarget = Join-Path $script:Source.Root ".github/copilot-instructions.md"
+    if ($script:Source.Mode -eq "local" -and (Test-Path -LiteralPath $target -PathType Leaf) -and
+        [System.IO.Path]::GetFullPath($target) -eq [System.IO.Path]::GetFullPath($sourceTarget)) {
+        Write-Step "skip     .github/copilot-instructions.md (source file)"
+        $script:Skipped++
+        return
+    }
+
+    $exists = Test-Path -LiteralPath $target -PathType Leaf
+    $content = if ($exists) { Get-Content -LiteralPath $target -Raw } else { "" }
+    if ($exists) {
+        Assert-CopilotMarkers $content ".github/copilot-instructions.md"
+    }
+
+    $block = Get-CopilotShimBlock
+    $pattern = '(?s)<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->.*?<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->'
+    $current = [regex]::Match($content, $pattern)
+    $currentText = if ($current.Success) { $current.Value.Replace("`r`n", "`n").TrimEnd() } else { "" }
+    $blockText = $block.Replace("`r`n", "`n").TrimEnd()
+
+    if ($current.Success -and $currentText -eq $blockText) {
+        Write-Step "skip     .github/copilot-instructions.md (Harness block current)"
+        $script:Skipped++
+        return
+    }
+
+    if ($DryRun) {
+        if ($current.Success) {
+            Write-Step "update   .github/copilot-instructions.md (refresh marked Harness block, backup first)"
+        } elseif ($exists) {
+            Write-Step "update   .github/copilot-instructions.md (append Harness block, backup first)"
+        } else {
+            Write-Step "create   .github/copilot-instructions.md"
+        }
+        if ($exists) { $script:Updated++ } else { $script:Created++ }
+        return
+    }
+
+    if ($current.Success) {
+        Backup-CopilotInstructions
+        $before = $content.Substring(0, $current.Index)
+        $after = $content.Substring($current.Index + $current.Length)
+        $content = $before + $block + $after
+        Set-Content -LiteralPath $target -Value $content -NoNewline
+        Write-Step "updated  .github/copilot-instructions.md (refreshed Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/.github/copilot-instructions.md)"
+    } elseif ($exists) {
+        Backup-CopilotInstructions
+        Set-Content -LiteralPath $target -Value ($content.TrimEnd() + "`n`n" + $block + "`n") -NoNewline
+        Write-Step "updated  .github/copilot-instructions.md (appended Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/.github/copilot-instructions.md)"
+    } else {
+        New-Item -ItemType Directory -Force -Path (Join-Path $script:TargetDir ".github") | Out-Null
+        Set-Content -LiteralPath $target -Value ("# Copilot Repository Instructions`n`n" + $block + "`n") -NoNewline
+        Write-Step "created  .github/copilot-instructions.md"
+    }
+
+    if ($exists) { $script:Updated++ } else { $script:Created++ }
+}
+
+function Backup-GeminiContext {
+    $target = Join-Path $script:TargetDir "GEMINI.md"
+    if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $script:BackupDir | Out-Null
+    $backup = Join-Path $script:BackupDir "GEMINI.md"
+    if (!(Test-Path -LiteralPath $backup)) {
+        Copy-Item -LiteralPath $target -Destination $backup
+    }
+}
+
+function Write-GeminiContext {
+    if (!$Gemini) {
+        return
+    }
+
+    $target = Join-Path $script:TargetDir "GEMINI.md"
+    Assert-NoReparseComponents "GEMINI.md" "GEMINI.md"
+    $sourceTarget = Join-Path $script:Source.Root "GEMINI.md"
+    if ($script:Source.Mode -eq "local" -and (Test-Path -LiteralPath $target -PathType Leaf) -and
+        [System.IO.Path]::GetFullPath($target) -eq [System.IO.Path]::GetFullPath($sourceTarget)) {
+        Write-Step "skip     GEMINI.md (source file)"
+        $script:Skipped++
+        return
+    }
+
+    $exists = Test-Path -LiteralPath $target -PathType Leaf
+    $content = if ($exists) { Get-Content -LiteralPath $target -Raw } else { "" }
+    if ($exists) {
+        Assert-GeminiMarkers $content "GEMINI.md"
+    }
+
+    $block = Get-GeminiShimBlock
+    $pattern = '(?s)<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->.*?<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->'
+    $current = [regex]::Match($content, $pattern)
+    $currentText = if ($current.Success) { $current.Value.Replace("`r`n", "`n").TrimEnd() } else { "" }
+    $blockText = $block.Replace("`r`n", "`n").TrimEnd()
+
+    if ($current.Success -and $currentText -eq $blockText) {
+        Write-Step "skip     GEMINI.md (Harness block current)"
+        $script:Skipped++
+        return
+    }
+
+    if ($DryRun) {
+        if ($current.Success) {
+            Write-Step "update   GEMINI.md (refresh marked Harness block, backup first)"
+        } elseif ($exists) {
+            Write-Step "update   GEMINI.md (append Harness block, backup first)"
+        } else {
+            Write-Step "create   GEMINI.md"
+        }
+        if ($exists) { $script:Updated++ } else { $script:Created++ }
+        return
+    }
+
+    if ($current.Success) {
+        Backup-GeminiContext
+        $before = $content.Substring(0, $current.Index)
+        $after = $content.Substring($current.Index + $current.Length)
+        $content = $before + $block + $after
+        Set-Content -LiteralPath $target -Value $content -NoNewline
+        Write-Step "updated  GEMINI.md (refreshed Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/GEMINI.md)"
+    } elseif ($exists) {
+        Backup-GeminiContext
+        Set-Content -LiteralPath $target -Value ($content.TrimEnd() + "`n`n" + $block + "`n") -NoNewline
+        Write-Step "updated  GEMINI.md (appended Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/GEMINI.md)"
+    } else {
+        Set-Content -LiteralPath $target -Value ("# Gemini CLI Repository Context`n`n" + $block + "`n") -NoNewline
+        Write-Step "created  GEMINI.md"
+    }
+
+    if ($exists) { $script:Updated++ } else { $script:Created++ }
+}
+
+function Copy-SourceFileTo([string]$SourceRelative, [string]$TargetRelative, [bool]$RefreshMarked = $false) {
+    $target = Join-Path $script:TargetDir $TargetRelative
+    Assert-NoReparseComponents $TargetRelative "Harness path $TargetRelative"
+    $targetItem = Get-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
+
+    if ($null -ne $targetItem) {
+        if ($RefreshMarked -and !$targetItem.PSIsContainer -and ((Get-Content -LiteralPath $target -Raw) -match '(?m)^<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->\r?$')) {
+            $sourceTemp = Join-Path ([System.IO.Path]::GetTempPath()) ("harness-source-" + [guid]::NewGuid().ToString("N"))
+            try {
+                Write-SourceFile $SourceRelative $sourceTemp
+                if ((Get-FileHash -Algorithm SHA256 $sourceTemp).Hash -eq (Get-FileHash -Algorithm SHA256 $target).Hash) {
+                    Write-Step "skip     $TargetRelative (Claude wrapper current)"
+                    $script:Skipped++
+                    return
+                }
+                if ($DryRun) {
+                    Write-Step "update   $TargetRelative (refresh marked Claude wrapper, backup first)"
+                } else {
+                    $backup = Join-Path $script:BackupDir $TargetRelative
+                    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
+                    Copy-Item -LiteralPath $target -Destination $backup -Force
+                    Copy-Item -LiteralPath $sourceTemp -Destination $target -Force
+                    Write-Step "updated  $TargetRelative (backup: $($backup.Substring($script:TargetDir.Length + 1)))"
+                }
+                $script:Updated++
+                return
+            } finally {
+                Remove-Item -LiteralPath $sourceTemp -Force -ErrorAction SilentlyContinue
+            }
+        }
+        if ($script:ConflictAction -eq "merge") {
+            Write-Step "skip     $TargetRelative (merge keeps existing file)"
+            $script:Skipped++
+        } elseif ($Force) {
+            if ($DryRun) {
+                Write-Step "overwrite $TargetRelative (backup first)"
+            } else {
+                $backup = Join-Path $script:BackupDir $TargetRelative
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backup) | Out-Null
+                Copy-Item -LiteralPath $target -Destination $backup -Force
+                Write-SourceFile $SourceRelative $target
+                Write-Step "updated  $TargetRelative (backup: $($backup.Substring($script:TargetDir.Length + 1)))"
+            }
+            $script:Updated++
+        } else {
+            Write-Step "skip     $TargetRelative (already exists)"
+            $script:Skipped++
+        }
+        return
+    }
+
+    if ($DryRun) {
+        Write-Step "create   $TargetRelative"
+    } else {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+        Write-SourceFile $SourceRelative $target
+        Write-Step "created  $TargetRelative"
+    }
+    $script:Created++
+}
+
+function Install-ClaudeSkills {
+    if (!$Claude) {
+        return
+    }
+    foreach ($file in (Get-PayloadFiles $script:ClaudeSkillsPayloadManifest)) {
+        Copy-SourceFileTo $file $file $true
+    }
+    if ($WithEngineeringWisdom) {
+        Copy-SourceFileTo "scripts/claude-engineering-wisdom-shim.md" ".claude/skills/engineering-wisdom/SKILL.md" $true
     }
 }
 
@@ -468,6 +761,7 @@ $script:SourceBaseUrl = if ($env:HARNESS_SOURCE_BASE_URL) { $env:HARNESS_SOURCE_
 $script:CoreSourceBaseUrl = if ($env:HARNESS_CORE_SOURCE_BASE_URL) { $env:HARNESS_CORE_SOURCE_BASE_URL.TrimEnd("/") } else { "https://raw.githubusercontent.com/vtp772002/harness-by-victoria/main" }
 $script:PayloadManifest = "scripts/harness-install-files.txt"
 $script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"
+$script:ClaudeSkillsPayloadManifest = "scripts/claude-skill-install-files.txt"
 $script:TargetDir = Resolve-TargetPath $Directory
 $backupRelative = ".harness-backup/" + [guid]::NewGuid().ToString("N")
 $script:BackupDir = Join-Path $script:TargetDir $backupRelative
@@ -481,6 +775,8 @@ if ($Merge -and $Override) {
 if (!$DryRun -and !(Test-Path $script:TargetDir)) {
     New-Item -ItemType Directory -Force -Path $script:TargetDir | Out-Null
 }
+
+Assert-OptionalTargetPaths
 
 $protectedPaths = @("AGENTS.md", "docs")
 foreach ($protected in $protectedPaths) {
@@ -542,6 +838,11 @@ if ($WithEngineeringWisdom) {
 } else {
     Write-Step "Engineering wisdom: excluded"
 }
+if ($Gemini) {
+    Write-Step "Gemini context: included (explicit opt-in)"
+} else {
+    Write-Step "Gemini context: excluded"
+}
 Write-Step "Target project: $script:TargetDir"
 
 Install-HarnessCore
@@ -549,6 +850,9 @@ Install-HarnessCore
 Install-EngineeringWisdom
 Refresh-AgentShimFile
 Write-ClaudeShim
+Write-CopilotInstructions
+Write-GeminiContext
+Install-ClaudeSkills
 
 Write-Step ""
 Write-Step "Done. Created: $script:Created, updated: $script:Updated, skipped: $script:Skipped."

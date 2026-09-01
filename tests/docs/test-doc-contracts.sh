@@ -16,11 +16,14 @@ require() {
 
 current_files=(
   README.md
+  SECURITY.md
   AGENTS.md
+  GEMINI.md
   docs/WORKFLOW.md
   docs/ARCHITECTURE.md
   docs/HARNESS.md
   docs/README.md
+  docs/RELEASE.md
   docs/patterns/encoding-invariants.md
   docs/product/README.md
   docs/product/installation-profiles.md
@@ -45,11 +48,26 @@ current_files=(
   docs/evaluation/trajectory-evidence-v1.md
   docs/decisions/0029-metadata-only-external-trajectory-evidence.md
   docs/decisions/0030-node24-github-actions-runtime.md
+  docs/decisions/0031-portable-agent-skills-bundle-contract.md
+  docs/decisions/0032-signed-build-provenance-for-core-artifacts.md
+  docs/decisions/0033-copilot-instruction-loader.md
+  docs/decisions/0034-gemini-context-loader.md
   docs/plans/active/world-class-harness.md
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
+  scripts/validate-skill-bundles.py
+  tests/skills/test-skill-bundles.sh
   tests/evaluation/test-harness-evaluator.sh
   tests/evaluation/test-trajectory-evidence.sh
+  scripts/claude-skill-install-files.txt
+  scripts/claude-engineering-wisdom-shim.md
+  scripts/copilot-harness-block.md
+  scripts/gemini-harness-block.md
+  .claude/skills/audit-onboarding-proposal/SKILL.md
+  .claude/skills/encode-invariant/SKILL.md
+  .claude/skills/improve-harness/SKILL.md
+  .claude/skills/onboard-repository/SKILL.md
+  .github/copilot-instructions.md
   .github/ISSUE_TEMPLATE/real-world-example.md
 )
 for file in "${current_files[@]}"; do
@@ -82,10 +100,19 @@ require README.md '## Evaluate Harness'
 require README.md '## Protocol V1 End Of Life'
 require README.md '--claude'
 require README.md '-Claude'
+require README.md '--copilot'
+require README.md '-Copilot'
+require README.md '--gemini'
+require README.md '-Gemini'
+require README.md 'GEMINI.md'
+require README.md '.claude/skills/'
+require README.md 'canonical skill bodies'
 require docs/research/application-legibility.md 'research, not a release gate'
 require docs/decisions/0027-end-protocol-v1-and-focus-repository-protocol.md '`harness-cli-v0.1.22`'
 require .github/ISSUE_TEMPLATE/real-world-example.md '`docs/WORKFLOW.md`'
 require .github/ISSUE_TEMPLATE/real-world-example.md '`docs/ARCHITECTURE.md`'
+require .github/ISSUE_TEMPLATE/real-world-example.md 'GitHub Copilot'
+require .github/ISSUE_TEMPLATE/real-world-example.md 'Gemini CLI'
 
 for heading in Outcome Context Scope Approach 'Risks And Recovery' Progress Decisions Validation Result; do
   require docs/templates/exec-plan.md "## $heading"
@@ -123,8 +150,10 @@ executables=(
   tests/installer/test-install-harness-modes.sh
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
+  scripts/validate-skill-bundles.py
   tests/evaluation/test-harness-evaluator.sh
   tests/evaluation/test-trajectory-evidence.sh
+  tests/skills/test-skill-bundles.sh
 )
 for executable in "${executables[@]}"; do
   [[ -x "$root/$executable" ]] || fail "documented gate is not executable: $executable"
@@ -137,6 +166,7 @@ required_gates=(
   'tests/installer/test-install-harness-modes.sh'
   'tests/evaluation/test-harness-evaluator.sh'
   'tests/evaluation/test-trajectory-evidence.sh'
+  'python3 scripts/validate-skill-bundles.py'
   'tests/docs/test-doc-contracts.sh'
   'tests/workflow/test-repository-workflow.sh'
   'tests/workflow/test-task-authority.sh'
@@ -162,10 +192,44 @@ require scripts/README.md 'optional payloads,'
 require scripts/README.md 'agent shims'
 require scripts/README.md '`--claude`'
 require scripts/README.md '`-Claude`'
+require scripts/README.md 'claude-skill-install-files.txt'
+require scripts/README.md 'skill-discovery wrappers'
+require docs/product/installation-profiles.md 'skill-discovery wrappers'
 require README.md 'metadata-only trajectory evidence'
+require SECURITY.md 'private Security Advisory'
+require SECURITY.md 'independent publisher-compromise defense'
+require SECURITY.md 'GitHub artifact'
 require scripts/README.md 'validate-trajectory-evidence.py'
 require docs/README.md 'metadata-only boundary for external agent trajectory evidence'
 require docs/evaluation/trajectory-evidence-v1.md 'repository-harness-trajectory/v1'
+require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'Agent Skills specification'
+require scripts/README.md 'validate-skill-bundles.py'
+require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
+require scripts/README.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
+require docs/decisions/0032-signed-build-provenance-for-core-artifacts.md 'actions/attest@v4'
+require docs/decisions/0033-copilot-instruction-loader.md 'AGENTS.md'
+require docs/decisions/0033-copilot-instruction-loader.md '--copilot'
+require docs/decisions/0033-copilot-instruction-loader.md 'no `.github/skills/` copy'
+require docs/decisions/0033-copilot-instruction-loader.md 'custom-instructions documentation'
+require docs/decisions/0034-gemini-context-loader.md 'GEMINI.md'
+require docs/decisions/0034-gemini-context-loader.md '--gemini'
+require docs/decisions/0034-gemini-context-loader.md '@file.md'
+require README.md 'gh attestation verify'
+require README.md 'docs/RELEASE.md'
+require docs/RELEASE.md 'gh workflow run harness-release.yml'
+require docs/RELEASE.md 'gh attestation verify'
+require docs/RELEASE.md 'Branch protection'
+require scripts/README.md 'GitHub artifact attestation'
+require scripts/README.md 'copilot-harness-block.md'
+require scripts/README.md '--copilot'
+require scripts/README.md 'HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1'
+require scripts/README.md 'gemini-harness-block.md'
+require scripts/README.md '--gemini'
+require scripts/README.md 'HARNESS:GEMINI-CONTEXT:BEGIN:v1'
+require docs/product/installation-profiles.md '-Copilot'
+require docs/product/installation-profiles.md '-Gemini'
+require docs/research/agent-harness-landscape.md 'GitHub Copilot'
+require docs/research/agent-harness-landscape.md 'Gemini CLI'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null
