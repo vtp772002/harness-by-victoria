@@ -169,6 +169,54 @@ try {
     }
     if ($AcceptedMalformedCopilot) { throw "PowerShell installer unexpectedly accepted malformed Copilot markers" }
 
+    # Gemini context is an opt-in compatibility loader. It uses Gemini's
+    # native @-import syntax to keep AGENTS.md as the only policy source.
+    $Gemini = Join-Path $Temp "gemini"
+    New-Item -ItemType Directory -Force $Gemini | Out-Null
+    "# Local Gemini Rules`n`nKeep this Gemini-only rule.`n" | Set-Content (Join-Path $Gemini "GEMINI.md")
+    $GeminiBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Gemini "GEMINI.md")).Hash
+    Invoke-Install $Gemini @("Gemini")
+    $GeminiText = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (!$GeminiText.Contains("Keep this Gemini-only rule.") -or !$GeminiText.Contains("Gemini CLI compatibility loader")) { throw "PowerShell Gemini loader did not preserve local instructions" }
+    if (!$GeminiText.Contains("@./AGENTS.md")) { throw "PowerShell Gemini loader did not import AGENTS.md" }
+    if (([regex]::Matches($GeminiText, '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Gemini loader marker is not idempotent" }
+    $GeminiBackup = Get-ChildItem (Join-Path $Gemini ".harness-backup") -Recurse -Filter "GEMINI.md" -File | Select-Object -First 1
+    if (!$GeminiBackup -or (Get-FileHash -Algorithm SHA256 $GeminiBackup.FullName).Hash -ne $GeminiBefore) { throw "PowerShell Gemini loader backup does not match prior instructions" }
+    Invoke-Install $Gemini @("Gemini", "Merge")
+    $GeminiText = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (([regex]::Matches($GeminiText, '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell Gemini loader is not idempotent" }
+
+    @(
+        "# Gemini CLI Repository Context"
+        "<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->"
+        "stale"
+        "<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->"
+    ) | Set-Content (Join-Path $Gemini "GEMINI.md")
+    Invoke-Install $Gemini @("Gemini", "Merge")
+    $RefreshedGemini = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (!$RefreshedGemini.Contains("Gemini CLI compatibility loader") -or $RefreshedGemini.Contains("stale")) { throw "PowerShell Gemini loader was not refreshed" }
+
+    @(
+        "# Gemini CLI compatibility loader"
+        "consumer-owned policy"
+    ) | Set-Content (Join-Path $Gemini "GEMINI.md")
+    $ConsumerGeminiBefore = (Get-FileHash -Algorithm SHA256 (Join-Path $Gemini "GEMINI.md")).Hash
+    Invoke-Install $Gemini @("Gemini", "Merge")
+    $ConsumerGemini = Get-Content -Raw (Join-Path $Gemini "GEMINI.md")
+    if (!$ConsumerGemini.Contains("consumer-owned policy") -or !$ConsumerGemini.Contains("Gemini CLI compatibility loader")) { throw "PowerShell consumer Gemini instructions were replaced" }
+    if ((Get-FileHash -Algorithm SHA256 (Join-Path $Gemini "GEMINI.md")).Hash -eq $ConsumerGeminiBefore) { throw "PowerShell Gemini loader did not append to consumer instructions" }
+    if (([regex]::Matches($ConsumerGemini, '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->')).Count -ne 1) { throw "PowerShell consumer Gemini marker missing" }
+
+    "# Gemini CLI Repository Context`n<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->`nstale without end" | Set-Content (Join-Path $Gemini "GEMINI.md")
+    $AcceptedMalformedGemini = $false
+    try {
+        Invoke-Install $Gemini @("Gemini", "Merge")
+        $AcceptedMalformedGemini = $true
+    } catch {
+        if (!$_.Exception.Message.Contains("exactly one complete Gemini Harness marker pair")) { throw }
+    }
+    if ($AcceptedMalformedGemini) { throw "PowerShell installer unexpectedly accepted malformed Gemini markers" }
+
     $ClaudeOptIn = Join-Path $Temp "claude-opt-in"
     Invoke-Install $ClaudeOptIn @("Claude", "WithEngineeringWisdom")
     if (!(Test-Path (Join-Path $ClaudeOptIn ".claude/skills/engineering-wisdom/SKILL.md"))) { throw "PowerShell Claude engineering-wisdom wrapper missing after explicit opt-in" }

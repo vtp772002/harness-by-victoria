@@ -43,6 +43,8 @@ contract test is tests/skills/test-skill-bundles.sh.
   wrapper for the engineering-wisdom add-on.
 - `copilot-harness-block.md`: the optional GitHub Copilot instruction loader
   that points back to the canonical `AGENTS.md` source.
+- `gemini-harness-block.md`: the optional Gemini CLI context loader that uses
+  Gemini's native `@./AGENTS.md` import to point back to the canonical source.
 - `agent-harness-block.md` and `claude-harness-block.md`: managed entrypoint
   shims. `--claude` / `-Claude` enables the Claude Code shim through the Bash
   / PowerShell bootstrap respectively, including the thin Claude Code
@@ -53,6 +55,11 @@ contract test is tests/skills/test-skill-bundles.sh.
 `.github/copilot-instructions.md`. It is separate from the default core and
 preserves an existing unmarked Copilot instruction file. The block uses the
 exact `HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1` / `END:v1` ownership markers.
+
+`--gemini` / `-Gemini` appends or refreshes the managed block in `GEMINI.md`.
+It is separate from the default core and preserves an existing unmarked Gemini
+instruction file. The block uses the exact
+`HARNESS:GEMINI-CONTEXT:BEGIN:v1` / `END:v1` ownership markers.
 
 Claude skill wrappers carry an explicit
 `<!-- HARNESS:CLAUDE-SKILL-WRAPPER:v1 -->` ownership marker. The installers

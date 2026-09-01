@@ -99,6 +99,11 @@ thin `.github/copilot-instructions.md` pointer to `AGENTS.md`, preserving
 consumer instructions and keeping `.agents/skills/` as the single canonical
 skill location. No `.github/skills/` duplicate is installed.
 
+Gemini CLI can use the same authority through the optional `--gemini` /
+`-Gemini` loader. It creates or refreshes a thin `GEMINI.md` file using
+Gemini's native `@./AGENTS.md` import, preserving consumer instructions and
+keeping `.agents/skills/` as the single canonical skill location.
+
 ## Install
 
 From a target repository:
@@ -125,6 +130,10 @@ the thin skill-discovery wrappers described above. Add the engineering-wisdom
 flag only when that advisory pack is explicitly wanted.
 
 For GitHub Copilot, add `--copilot` to the Bash installer or `-Copilot` to the
+PowerShell installer. The loader is opt-in and only provides discovery; it does
+not grant tool permissions, sandboxing, or merge authority.
+
+For Gemini CLI, add `--gemini` to the Bash installer or `-Gemini` to the
 PowerShell installer. The loader is opt-in and only provides discovery; it does
 not grant tool permissions, sandboxing, or merge authority.
 

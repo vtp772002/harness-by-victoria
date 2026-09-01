@@ -8,6 +8,8 @@ Start with the smallest authoritative surface.
   completion.
 - `.github/copilot-instructions.md`: optional-surface loader that points
   Copilot back to the canonical `AGENTS.md` instructions.
+- `GEMINI.md`: optional-surface loader that imports the canonical `AGENTS.md`
+  instructions for Gemini CLI.
 - `ARCHITECTURE.md`: current product, code, state, update, and ownership
   boundaries.
 - `HARNESS.md`: product principles and installed-core model.

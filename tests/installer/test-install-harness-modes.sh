@@ -30,6 +30,14 @@ extract_copilot_block() {
   ' "$1"
 }
 
+extract_gemini_block() {
+  awk '
+    /<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->/ { in_block = 1 }
+    in_block { print }
+    /<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->/ { exit }
+  ' "$1"
+}
+
 assert_rejected_flag() {
   local flag="$1"
   local output="$temp/rejected-${flag#--}.out"
@@ -51,6 +59,7 @@ grep -Fq 'Harness profile: core' "$temp/fresh.out"
 [[ -f "$fresh/docs/WORKFLOW.md" ]]
 [[ -f "$fresh/docs/patterns/encoding-invariants.md" ]]
 [[ -f "$fresh/.agents/skills/encode-invariant/SKILL.md" ]]
+[[ ! -e "$fresh/GEMINI.md" ]]
 cmp -s <(extract_block "$fresh/AGENTS.md") "$root/scripts/agent-harness-block.md"
 grep -Fq 'docs/patterns/encoding-invariants.md' "$fresh/AGENTS.md"
 grep -Fq 'Does The Work Encode An Invariant?' "$fresh/docs/WORKFLOW.md"
@@ -199,6 +208,44 @@ if install --directory "$copilot" --copilot --merge --yes >"$temp/copilot-malfor
   exit 1
 fi
 grep -Fq 'exactly one complete Copilot Harness marker pair' "$temp/copilot-malformed.out"
+
+# Gemini context is an opt-in compatibility loader. It uses Gemini's native
+# @-import syntax to keep AGENTS.md as the only policy source.
+gemini="$temp/gemini"
+mkdir -p "$gemini"
+printf '# Local Gemini Rules\n\nKeep this Gemini-only rule.\n' >"$gemini/GEMINI.md"
+gemini_before=$(shasum -a 256 "$gemini/GEMINI.md" | awk '{ print $1 }')
+install --directory "$gemini" --gemini --yes >"$temp/gemini.out"
+grep -Fq 'Keep this Gemini-only rule.' "$gemini/GEMINI.md"
+cmp -s <(extract_gemini_block "$gemini/GEMINI.md") "$root/scripts/gemini-harness-block.md"
+[[ "$(grep -Fc '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$gemini/GEMINI.md")" == 1 ]]
+grep -Fq '@./AGENTS.md' "$gemini/GEMINI.md"
+gemini_backup=$(find "$gemini/.harness-backup" -name GEMINI.md -type f | head -n 1)
+[[ "$(shasum -a 256 "$gemini_backup" | awk '{ print $1 }')" == "$gemini_before" ]]
+install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-idempotent.out"
+[[ "$(grep -Fc '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$gemini/GEMINI.md")" == 1 ]]
+
+printf '# Gemini CLI Repository Context\n<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->\nstale\n<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->\n' \
+  >"$gemini/GEMINI.md"
+install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-refresh.out"
+grep -Fq 'Gemini CLI compatibility loader' "$gemini/GEMINI.md"
+! grep -Fq 'stale' "$gemini/GEMINI.md"
+
+printf '# Gemini CLI compatibility loader\nconsumer-owned policy\n' >"$gemini/GEMINI.md"
+consumer_gemini_before=$(shasum -a 256 "$gemini/GEMINI.md" | awk '{ print $1 }')
+install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-consumer.out"
+grep -Fq 'consumer-owned policy' "$gemini/GEMINI.md"
+grep -Fq 'Gemini CLI compatibility loader' "$gemini/GEMINI.md"
+[[ "$(shasum -a 256 "$gemini/GEMINI.md" | awk '{ print $1 }')" != "$consumer_gemini_before" ]]
+[[ "$(grep -Fc '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->' "$gemini/GEMINI.md")" == 1 ]]
+
+printf '# Gemini CLI Repository Context\n<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->\nstale without end\n' \
+  >"$gemini/GEMINI.md"
+if install --directory "$gemini" --gemini --merge --yes >"$temp/gemini-malformed.out" 2>&1; then
+  echo 'installer unexpectedly accepted malformed Gemini markers' >&2
+  exit 1
+fi
+grep -Fq 'exactly one complete Gemini Harness marker pair' "$temp/gemini-malformed.out"
 
 # Merge fills missing core files but never deletes or rewrites legacy protocol
 # files, a pre-existing database, or unrelated scripts.

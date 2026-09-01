@@ -30,6 +30,11 @@ optional `.github/copilot-instructions.md` loader. It points Copilot back to
 `AGENTS.md`, preserves unmarked consumer instructions, backs up refreshes, and
 does not install a duplicate `.github/skills/` tree.
 
+The Bash `--gemini` and PowerShell `-Gemini` options install or refresh the
+optional `GEMINI.md` loader. It uses Gemini's native `@./AGENTS.md` import,
+preserves unmarked consumer instructions, backs up refreshes, and does not
+install a duplicate `.gemini/skills/` tree.
+
 Core installation:
 
 - records exact upstream bytes under `.harness-core/`;

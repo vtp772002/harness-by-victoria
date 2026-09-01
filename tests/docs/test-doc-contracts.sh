@@ -18,6 +18,7 @@ current_files=(
   README.md
   SECURITY.md
   AGENTS.md
+  GEMINI.md
   docs/WORKFLOW.md
   docs/ARCHITECTURE.md
   docs/HARNESS.md
@@ -50,6 +51,7 @@ current_files=(
   docs/decisions/0031-portable-agent-skills-bundle-contract.md
   docs/decisions/0032-signed-build-provenance-for-core-artifacts.md
   docs/decisions/0033-copilot-instruction-loader.md
+  docs/decisions/0034-gemini-context-loader.md
   docs/plans/active/world-class-harness.md
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
@@ -60,6 +62,7 @@ current_files=(
   scripts/claude-skill-install-files.txt
   scripts/claude-engineering-wisdom-shim.md
   scripts/copilot-harness-block.md
+  scripts/gemini-harness-block.md
   .claude/skills/audit-onboarding-proposal/SKILL.md
   .claude/skills/encode-invariant/SKILL.md
   .claude/skills/improve-harness/SKILL.md
@@ -99,12 +102,17 @@ require README.md '--claude'
 require README.md '-Claude'
 require README.md '--copilot'
 require README.md '-Copilot'
+require README.md '--gemini'
+require README.md '-Gemini'
+require README.md 'GEMINI.md'
 require README.md '.claude/skills/'
 require README.md 'canonical skill bodies'
 require docs/research/application-legibility.md 'research, not a release gate'
 require docs/decisions/0027-end-protocol-v1-and-focus-repository-protocol.md '`harness-cli-v0.1.22`'
 require .github/ISSUE_TEMPLATE/real-world-example.md '`docs/WORKFLOW.md`'
 require .github/ISSUE_TEMPLATE/real-world-example.md '`docs/ARCHITECTURE.md`'
+require .github/ISSUE_TEMPLATE/real-world-example.md 'GitHub Copilot'
+require .github/ISSUE_TEMPLATE/real-world-example.md 'Gemini CLI'
 
 for heading in Outcome Context Scope Approach 'Risks And Recovery' Progress Decisions Validation Result; do
   require docs/templates/exec-plan.md "## $heading"
@@ -203,6 +211,9 @@ require docs/decisions/0033-copilot-instruction-loader.md 'AGENTS.md'
 require docs/decisions/0033-copilot-instruction-loader.md '--copilot'
 require docs/decisions/0033-copilot-instruction-loader.md 'no `.github/skills/` copy'
 require docs/decisions/0033-copilot-instruction-loader.md 'custom-instructions documentation'
+require docs/decisions/0034-gemini-context-loader.md 'GEMINI.md'
+require docs/decisions/0034-gemini-context-loader.md '--gemini'
+require docs/decisions/0034-gemini-context-loader.md '@file.md'
 require README.md 'gh attestation verify'
 require README.md 'docs/RELEASE.md'
 require docs/RELEASE.md 'gh workflow run harness-release.yml'
@@ -212,8 +223,13 @@ require scripts/README.md 'GitHub artifact attestation'
 require scripts/README.md 'copilot-harness-block.md'
 require scripts/README.md '--copilot'
 require scripts/README.md 'HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1'
+require scripts/README.md 'gemini-harness-block.md'
+require scripts/README.md '--gemini'
+require scripts/README.md 'HARNESS:GEMINI-CONTEXT:BEGIN:v1'
 require docs/product/installation-profiles.md '-Copilot'
+require docs/product/installation-profiles.md '-Gemini'
 require docs/research/agent-harness-landscape.md 'GitHub Copilot'
+require docs/research/agent-harness-landscape.md 'Gemini CLI'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null

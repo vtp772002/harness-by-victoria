@@ -5,6 +5,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 agent_block="$root/scripts/agent-harness-block.md"
 claude_block="$root/scripts/claude-harness-block.md"
 copilot_block="$root/scripts/copilot-harness-block.md"
+gemini_block="$root/scripts/gemini-harness-block.md"
 workflow="$root/docs/WORKFLOW.md"
 
 extract_block() {
@@ -25,6 +26,14 @@ extract_copilot_block() {
   ' "$1"
 }
 cmp -s <(extract_copilot_block "$root/.github/copilot-instructions.md") "$copilot_block"
+extract_gemini_block() {
+  awk '
+    /<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->/ { in_block = 1 }
+    in_block { print }
+    /<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->/ { exit }
+  ' "$1"
+}
+cmp -s <(extract_gemini_block "$root/GEMINI.md") "$gemini_block"
 
 required_agent_text=(
   'Start with the requested outcome'
@@ -112,6 +121,7 @@ done
 
 [[ "$(grep -Fc '@AGENTS.md' "$claude_block")" == 1 ]]
 ! grep -Fq 'query matrix' "$claude_block"
+[[ "$(grep -Fc '@./AGENTS.md' "$gemini_block")" == 1 ]]
 
 payloads=(
   .agents/skills/audit-onboarding-proposal/SKILL.md
@@ -189,26 +199,32 @@ grep -Fq 'Do not add, edit, delete, enable, or execute a guard during onboarding
 grep -Fq 'read_source_text "scripts/agent-harness-block.md"' "$root/scripts/install-harness.sh"
 grep -Fq 'read_source_text "scripts/claude-harness-block.md"' "$root/scripts/install-harness.sh"
 grep -Fq 'read_source_text "scripts/copilot-harness-block.md"' "$root/scripts/install-harness.sh"
+grep -Fq 'read_source_text "scripts/gemini-harness-block.md"' "$root/scripts/install-harness.sh"
 grep -Fq 'REFRESH_AGENT_SHIM=1' "$root/scripts/install-harness.sh"
 grep -Fq 'ENGINEERING_WISDOM_PAYLOAD_MANIFEST="scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.sh"
 grep -Fq 'CLAUDE_SKILLS_PAYLOAD_MANIFEST="scripts/claude-skill-install-files.txt"' "$root/scripts/install-harness.sh"
 grep -Fq 'install_claude_skills' "$root/scripts/install-harness.sh"
 grep -Fq 'scripts/claude-engineering-wisdom-shim.md' "$root/scripts/install-harness.sh"
 grep -Fq 'write_copilot_instructions' "$root/scripts/install-harness.sh"
+grep -Fq 'write_gemini_context' "$root/scripts/install-harness.sh"
 ! grep -Fq 'CLI_PAYLOAD_MANIFEST' "$root/scripts/install-harness.sh"
 
 grep -Fq 'Read-SourceText "scripts/agent-harness-block.md"' "$root/scripts/install-harness.ps1"
 grep -Fq 'Read-SourceText "scripts/claude-harness-block.md"' "$root/scripts/install-harness.ps1"
 grep -Fq 'Read-SourceText "scripts/copilot-harness-block.md"' "$root/scripts/install-harness.ps1"
+grep -Fq 'Read-SourceText "scripts/gemini-harness-block.md"' "$root/scripts/install-harness.ps1"
 grep -Fq '[switch]$RefreshAgentShim' "$root/scripts/install-harness.ps1"
 grep -Fq '[switch]$Claude' "$root/scripts/install-harness.ps1"
 grep -Fq '[switch]$Copilot' "$root/scripts/install-harness.ps1"
+grep -Fq '[switch]$Gemini' "$root/scripts/install-harness.ps1"
 grep -Fq '$script:EngineeringWisdomPayloadManifest = "scripts/engineering-wisdom-install-files.txt"' "$root/scripts/install-harness.ps1"
 grep -Fq '$script:ClaudeSkillsPayloadManifest = "scripts/claude-skill-install-files.txt"' "$root/scripts/install-harness.ps1"
 grep -Fq 'Install-ClaudeSkills' "$root/scripts/install-harness.ps1"
 grep -Fq 'scripts/claude-engineering-wisdom-shim.md' "$root/scripts/install-harness.ps1"
 grep -Fq 'Write-CopilotInstructions' "$root/scripts/install-harness.ps1"
 grep -Fq 'Assert-CopilotMarkers' "$root/scripts/install-harness.ps1"
+grep -Fq 'Write-GeminiContext' "$root/scripts/install-harness.ps1"
+grep -Fq 'Assert-GeminiMarkers' "$root/scripts/install-harness.ps1"
 ! grep -Fq 'CliPayloadManifest' "$root/scripts/install-harness.ps1"
 
 echo "repository authority, bounded context, canonical shims, and core-only installer parity passed"

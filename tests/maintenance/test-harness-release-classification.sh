@@ -19,6 +19,7 @@ positive_paths=(
   scripts/agent-harness-block.md
   scripts/claude-engineering-wisdom-shim.md
   scripts/copilot-harness-block.md
+  scripts/gemini-harness-block.md
   scripts/claude-skill-install-files.txt
   scripts/harness-install-files.txt
   scripts/validate-skill-bundles.py
@@ -33,6 +34,7 @@ positive_paths=(
   .github/workflows/harness-release.yml
   .github/workflows/post-merge-maintenance.yml
   .github/copilot-instructions.md
+  GEMINI.md
   Cargo.toml
   Cargo.lock
 )

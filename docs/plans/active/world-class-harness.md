@@ -116,6 +116,9 @@ Out of scope:
 - [x] Add an optional, marker-owned GitHub Copilot instruction loader while
       preserving `AGENTS.md` as the only policy source; prove creation,
       refresh, backup, idempotence, and malformed-marker rejection.
+- [x] Add an optional, marker-owned Gemini CLI context loader using Gemini's
+      native `@./AGENTS.md` import while preserving `AGENTS.md` as the only
+      policy source; prove equivalent cross-platform lifecycle behavior.
 
 ## Decisions
 
@@ -149,6 +152,9 @@ Out of scope:
 - 2026-09-01: Adopt Decision 0033: keep `AGENTS.md` canonical and expose
   Copilot's repository-wide instruction surface only through an explicit,
   marker-owned loader; do not create `.github/skills/` duplicates.
+- 2026-09-01: Adopt Decision 0034: keep `AGENTS.md` canonical and expose
+  Gemini CLI's repository context only through an explicit, marker-owned
+  `GEMINI.md` import loader; do not create a duplicate Gemini skill tree.
 
 ## Validation
 
@@ -193,6 +199,10 @@ Out of scope:
   creation, consumer-text preservation, marked-block refresh, backup,
   idempotence, and malformed-marker rejection; the full pre-merge protocol
   passes locally after the Windows fixture correction.
+- Local Gemini proof: the Bash installer contract covers optional creation,
+  native `@./AGENTS.md` import, consumer-text preservation, marked-block
+  refresh, backup, idempotence, and malformed-marker rejection. PowerShell
+  coverage is included for hosted Windows execution.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result
@@ -204,9 +214,10 @@ metadata-only external trajectory validator. Each scorecard report records
 reproduction metadata and retains bounded failure diagnostics. Bootstrap-
 managed writes now fail closed on broken symlinks and reparse points. Hosted
 CI now runs the Node 24-compatible action majors on both Linux and Windows.
-The repository also exposes an optional Copilot instruction bridge while
-keeping `AGENTS.md` canonical, and the README/docs now describe the supported
-Codex, Claude Code, GitHub Copilot, and Cursor discovery paths. The plan
+The repository also exposes optional Copilot and Gemini instruction bridges
+while keeping `AGENTS.md` canonical, and the README/docs now describe the
+supported Codex, Claude Code, GitHub Copilot, Gemini CLI, and Cursor discovery
+paths. The plan
 remains active for future authority-gated work such as wiring a specific
 external runner, defining a machine-facing CLI error contract, publishing and
 migrating to the repository-owned binary channel, or adding additional client

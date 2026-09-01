@@ -21,6 +21,7 @@ Use `docs/templates/decision.md`. Task-local choices stay in the active plan.
 | 0031 | Portable Agent Skills Bundle Contract |
 | 0032 | Signed Build Provenance For Core Artifacts |
 | 0033 | Copilot Instruction Loader |
+| 0034 | Gemini Context Loader |
 
 These decisions describe the current Harness product, including decisions
 inherited from the upstream lineage and downstream decisions owned by this

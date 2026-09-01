@@ -38,7 +38,7 @@ control plane.
 | Capability | Current evidence in this repository | Assessment |
 | --- | --- | --- |
 | Repository authority and small context | `AGENTS.md`, `docs/WORKFLOW.md`, `docs/README.md`, product/decision/plan maps | Strong |
-| Portable skills and client shims | Canonical `.agents/skills/`, thin `.claude/skills/` discovery wrappers, optional Claude and Copilot instruction loaders, exact installer manifests | Strong for Codex, Claude Code, GitHub Copilot, and Cursor's documented standard paths; other client adapters are not established |
+| Portable skills and client shims | Canonical `.agents/skills/`, thin `.claude/skills/` discovery wrappers, optional Claude, Copilot, and Gemini instruction loaders, exact installer manifests | Strong for Codex, Claude Code, GitHub Copilot, Gemini CLI, and Cursor's documented standard paths; other client adapters are not established |
 | Human-owned ambiguity boundary | Workflow authority gate and task-authority contract | Strong |
 | Safe maintenance and recovery | Rust transactions, three-way merge, conflict staging, drift detection, rollback, symlink checks | Strong |
 | Release identity and byte integrity | Versioned release pointer, binary version check, SHA-256 sidecar, exact asset inventory, and Decision 0032 GitHub artifact provenance | Strong hosted integrity and provenance; independent publisher trust root remains explicitly absent and own-release attestation is not yet observed |
@@ -81,13 +81,12 @@ is a decision-shaped gap, not permission to guess.
 ### P1: Cross-client portability audit
 
 The current product supports the canonical `AGENTS.md` entrypoint, an optional
-Claude shim and skill-discovery wrappers, and an optional GitHub Copilot
-repository-instructions loader. The Copilot loader points back to `AGENTS.md`
-and does not create a duplicate `.github/skills/` tree. Cursor and Copilot
-surfaces that directly consume `AGENTS.md` and `.agents/skills/` need no extra
-copy. Survey additional clients only when their file format, precedence, and
-installation ownership are authoritative; do not scatter duplicate
-instructions that can drift.
+Claude shim and skill-discovery wrappers, and optional GitHub Copilot and
+Gemini CLI instruction loaders. Both loaders point back to `AGENTS.md` and do
+not create duplicate skill trees. Cursor surfaces that directly consume
+`AGENTS.md` and `.agents/skills/` need no extra copy. Survey additional clients
+only when their file format, precedence, and installation ownership are
+authoritative; do not scatter duplicate instructions that can drift.
 
 ### P2: Independent release trust root
 

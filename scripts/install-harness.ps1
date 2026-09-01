@@ -9,6 +9,7 @@ param(
     [switch]$RefreshAgentShim,
     [switch]$Claude,
     [switch]$Copilot,
+    [switch]$Gemini,
     [switch]$Override,
     [switch]$Force,
     [switch]$DryRun
@@ -181,6 +182,10 @@ function Get-CopilotShimBlock {
     return (Read-SourceText "scripts/copilot-harness-block.md").TrimEnd("`r", "`n")
 }
 
+function Get-GeminiShimBlock {
+    return (Read-SourceText "scripts/gemini-harness-block.md").TrimEnd("`r", "`n")
+}
+
 function Assert-CopilotMarkers([string]$Content, [string]$Label) {
     $beginMarker = '<!-- HARNESS:COPILOT-INSTRUCTIONS:BEGIN:v1 -->'
     $endMarker = '<!-- HARNESS:COPILOT-INSTRUCTIONS:END:v1 -->'
@@ -194,6 +199,22 @@ function Assert-CopilotMarkers([string]$Content, [string]$Label) {
     }
     if ($begin[0].Index -ge $end[0].Index) {
         Fail "$Label Copilot Harness markers are out of order"
+    }
+}
+
+function Assert-GeminiMarkers([string]$Content, [string]$Label) {
+    $beginMarker = '<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->'
+    $endMarker = '<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->'
+    $begin = [regex]::Matches($Content, [regex]::Escape($beginMarker))
+    $end = [regex]::Matches($Content, [regex]::Escape($endMarker))
+    if ($begin.Count -eq 0 -and $end.Count -eq 0) {
+        return
+    }
+    if ($begin.Count -ne 1 -or $end.Count -ne 1) {
+        Fail "$Label must contain exactly one complete Gemini Harness marker pair"
+    }
+    if ($begin[0].Index -ge $end[0].Index) {
+        Fail "$Label Gemini Harness markers are out of order"
     }
 }
 
@@ -405,6 +426,82 @@ function Write-CopilotInstructions {
         New-Item -ItemType Directory -Force -Path (Join-Path $script:TargetDir ".github") | Out-Null
         Set-Content -LiteralPath $target -Value ("# Copilot Repository Instructions`n`n" + $block + "`n") -NoNewline
         Write-Step "created  .github/copilot-instructions.md"
+    }
+
+    if ($exists) { $script:Updated++ } else { $script:Created++ }
+}
+
+function Backup-GeminiContext {
+    $target = Join-Path $script:TargetDir "GEMINI.md"
+    if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+        return
+    }
+    New-Item -ItemType Directory -Force -Path $script:BackupDir | Out-Null
+    $backup = Join-Path $script:BackupDir "GEMINI.md"
+    if (!(Test-Path -LiteralPath $backup)) {
+        Copy-Item -LiteralPath $target -Destination $backup
+    }
+}
+
+function Write-GeminiContext {
+    if (!$Gemini) {
+        return
+    }
+
+    $target = Join-Path $script:TargetDir "GEMINI.md"
+    Assert-NoReparseComponents "GEMINI.md" "GEMINI.md"
+    $sourceTarget = Join-Path $script:Source.Root "GEMINI.md"
+    if ($script:Source.Mode -eq "local" -and (Test-Path -LiteralPath $target -PathType Leaf) -and
+        [System.IO.Path]::GetFullPath($target) -eq [System.IO.Path]::GetFullPath($sourceTarget)) {
+        Write-Step "skip     GEMINI.md (source file)"
+        $script:Skipped++
+        return
+    }
+
+    $exists = Test-Path -LiteralPath $target -PathType Leaf
+    $content = if ($exists) { Get-Content -LiteralPath $target -Raw } else { "" }
+    if ($exists) {
+        Assert-GeminiMarkers $content "GEMINI.md"
+    }
+
+    $block = Get-GeminiShimBlock
+    $pattern = '(?s)<!-- HARNESS:GEMINI-CONTEXT:BEGIN:v1 -->.*?<!-- HARNESS:GEMINI-CONTEXT:END:v1 -->'
+    $current = [regex]::Match($content, $pattern)
+    $currentText = if ($current.Success) { $current.Value.Replace("`r`n", "`n").TrimEnd() } else { "" }
+    $blockText = $block.Replace("`r`n", "`n").TrimEnd()
+
+    if ($current.Success -and $currentText -eq $blockText) {
+        Write-Step "skip     GEMINI.md (Harness block current)"
+        $script:Skipped++
+        return
+    }
+
+    if ($DryRun) {
+        if ($current.Success) {
+            Write-Step "update   GEMINI.md (refresh marked Harness block, backup first)"
+        } elseif ($exists) {
+            Write-Step "update   GEMINI.md (append Harness block, backup first)"
+        } else {
+            Write-Step "create   GEMINI.md"
+        }
+        if ($exists) { $script:Updated++ } else { $script:Created++ }
+        return
+    }
+
+    if ($current.Success) {
+        Backup-GeminiContext
+        $before = $content.Substring(0, $current.Index)
+        $after = $content.Substring($current.Index + $current.Length)
+        $content = $before + $block + $after
+        Set-Content -LiteralPath $target -Value $content -NoNewline
+        Write-Step "updated  GEMINI.md (refreshed Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/GEMINI.md)"
+    } elseif ($exists) {
+        Backup-GeminiContext
+        Set-Content -LiteralPath $target -Value ($content.TrimEnd() + "`n`n" + $block + "`n") -NoNewline
+        Write-Step "updated  GEMINI.md (appended Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/GEMINI.md)"
+    } else {
+        Set-Content -LiteralPath $target -Value ("# Gemini CLI Repository Context`n`n" + $block + "`n") -NoNewline
+        Write-Step "created  GEMINI.md"
     }
 
     if ($exists) { $script:Updated++ } else { $script:Created++ }
@@ -714,6 +811,11 @@ if ($WithEngineeringWisdom) {
 } else {
     Write-Step "Engineering wisdom: excluded"
 }
+if ($Gemini) {
+    Write-Step "Gemini context: included (explicit opt-in)"
+} else {
+    Write-Step "Gemini context: excluded"
+}
 Write-Step "Target project: $script:TargetDir"
 
 Install-HarnessCore
@@ -722,6 +824,7 @@ Install-EngineeringWisdom
 Refresh-AgentShimFile
 Write-ClaudeShim
 Write-CopilotInstructions
+Write-GeminiContext
 Install-ClaudeSkills
 
 Write-Step ""
