@@ -110,6 +110,9 @@ Out of scope:
       with a workflow contract and negative proof.
 - [x] Close review-found Agent Skills parser and wrapper-ownership gaps with
       fail-closed parsing and cross-platform consumer-preservation proof.
+- [x] Add the standalone core release runbook, including exact source
+      preconditions, five-platform proof order, attestation verification, and
+      recovery rules for the first repository-owned binary channel.
 
 ## Decisions
 
@@ -175,6 +178,8 @@ Out of scope:
 - Hosted review-fix proof: run `33497348728` passed both Ubuntu and Windows
   jobs on commit `89800e8`, including the new parser and wrapper-ownership
   tests.
+- Hosted documentation proof: run `33498485724` passed both Ubuntu and Windows
+  jobs on commit `6dbed2b`, including the standalone release runbook contract.
 - Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
   adding the Claude skill manifest, metadata-drift checks, stale-wrapper
   refresh tests, and release classification coverage.
