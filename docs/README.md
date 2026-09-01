@@ -19,6 +19,8 @@ Start with the smallest authoritative surface.
   structures.
 - `research/`: dated landscape studies and capability gap maps; research is
   informative until a lasting decision adopts a rule.
+- `RELEASE.md`: maintainer runbook for proof-first core binary publication and
+  post-publication verification.
 - `tests/evaluation/` and `scripts/evaluate-harness.sh`: deterministic,
   machine-readable behavior evidence for the current Harness-owned claims.
 - `evaluation/`: the versioned machine-readable evaluation contract and its

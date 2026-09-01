@@ -22,6 +22,7 @@ current_files=(
   docs/ARCHITECTURE.md
   docs/HARNESS.md
   docs/README.md
+  docs/RELEASE.md
   docs/patterns/encoding-invariants.md
   docs/product/README.md
   docs/product/installation-profiles.md
@@ -194,6 +195,10 @@ require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'HARNESS:CL
 require scripts/README.md 'HARNESS:CLAUDE-SKILL-WRAPPER:v1'
 require docs/decisions/0032-signed-build-provenance-for-core-artifacts.md 'actions/attest@v4'
 require README.md 'gh attestation verify'
+require README.md 'docs/RELEASE.md'
+require docs/RELEASE.md 'gh workflow run harness-release.yml'
+require docs/RELEASE.md 'gh attestation verify'
+require docs/RELEASE.md 'Branch protection'
 require scripts/README.md 'GitHub artifact attestation'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null

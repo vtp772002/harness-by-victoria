@@ -136,6 +136,9 @@ gh attestation verify ./harness-linux-x64 \
 The attestation contract is implemented, but hosted verification remains
 pending until this repository publishes its first own core release.
 
+Maintainers should use the [core release runbook](docs/RELEASE.md) when the
+first repository-owned binary channel is ready.
+
 ## Maintain An Installation
 
 ```bash
