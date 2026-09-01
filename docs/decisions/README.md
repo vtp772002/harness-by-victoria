@@ -19,6 +19,7 @@ Use `docs/templates/decision.md`. Task-local choices stay in the active plan.
 | 0029 | Metadata-Only External Trajectory Evidence |
 | 0030 | Node 24 GitHub Actions Runtime |
 | 0031 | Portable Agent Skills Bundle Contract |
+| 0032 | Signed Build Provenance For Core Artifacts |
 
 These decisions describe upstream Harness. Installed consumers begin with an
 empty decision index and add only real consumer choices.

@@ -68,6 +68,12 @@ profile.
 - `promote-harness-release-tag.sh`: promote a proven source commit.
 - `render-changelog-files.py`: render bounded changed-file lists.
 
+The release build generates a GitHub artifact attestation for each platform
+binary after checksum and lifecycle smoke proof. The sidecar checksum remains
+independently verified. Consumers can verify a published binary with
+`gh attestation verify`; the repository has not yet published its own binary
+release, so hosted verification is not yet observed here.
+
 Release commands are called by GitHub workflows. Local development should use
 the pre-merge entrypoint rather than publishing commands.
 

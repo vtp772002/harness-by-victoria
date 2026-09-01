@@ -124,6 +124,18 @@ repository publishes its own versioned binary release, the bootstrap's core
 binary channel remains the upstream release channel; set
 `HARNESS_CORE_CLI_BASE_URL` when using another authorized release source.
 
+Published core binaries are also intended to carry GitHub artifact
+attestations from the five-platform release build. After downloading a binary,
+verify its provenance against this repository:
+
+```bash
+gh attestation verify ./harness-linux-x64 \
+  -R vtp772002/harness-by-victoria
+```
+
+The attestation contract is implemented, but hosted verification remains
+pending until this repository publishes its first own core release.
+
 ## Maintain An Installation
 
 ```bash

@@ -106,6 +106,8 @@ Out of scope:
       `.agents/skills/` as the single canonical policy source; refresh marked
       wrappers safely with backups on both installers.
 - [x] Run full validation and record measured limits for this phase.
+- [x] Add signed GitHub artifact provenance to every platform release binary,
+      with a workflow contract and negative proof.
 
 ## Decisions
 
@@ -128,6 +130,10 @@ Out of scope:
   warnings, adopt Decision 0030: checkout v7, upload-artifact v7, and
   download-artifact v8 across workflows; do not alter merge policy or branch
   protection through this compatibility fix.
+- 2026-09-01: Adopt Decision 0032: attest each release binary with
+  `actions/attest@v4` after checksum and lifecycle proof, while retaining
+  SHA-256 sidecars and leaving offline/independent publisher trust and SBOM
+  policy out of scope.
 
 ## Validation
 
@@ -152,6 +158,10 @@ Out of scope:
   Run `33492276378` passed both jobs on commit `f5585e6`, including Claude
   skill-discovery wrapper installation, metadata parity, refresh, and backup
   coverage.
+- Local workflow proof: the release contract now verifies the attestation
+  action, subject path, least-privilege build permissions, and reusable caller
+  permissions; a temporary fixture with the action removed fails the intended
+  contract.
 - Local post-wrapper proof: `bash scripts/validate-premerge.sh` passed after
   adding the Claude skill manifest, metadata-drift checks, stale-wrapper
   refresh tests, and release classification coverage.

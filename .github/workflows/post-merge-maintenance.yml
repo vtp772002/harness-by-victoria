@@ -115,6 +115,8 @@ jobs:
     uses: ./.github/workflows/harness-release.yml
     permissions:
       contents: write
+      id-token: write
+      attestations: write
     with:
       release_tag: ${{ needs.prepare.outputs.harness_release_tag }}
       checkout_ref: ${{ needs.prepare.outputs.maintenance_ref }}

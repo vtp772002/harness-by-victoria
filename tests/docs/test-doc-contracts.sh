@@ -47,6 +47,7 @@ current_files=(
   docs/decisions/0029-metadata-only-external-trajectory-evidence.md
   docs/decisions/0030-node24-github-actions-runtime.md
   docs/decisions/0031-portable-agent-skills-bundle-contract.md
+  docs/decisions/0032-signed-build-provenance-for-core-artifacts.md
   docs/plans/active/world-class-harness.md
   scripts/evaluate-harness.sh
   scripts/validate-trajectory-evidence.py
@@ -188,6 +189,9 @@ require docs/README.md 'metadata-only boundary for external agent trajectory evi
 require docs/evaluation/trajectory-evidence-v1.md 'repository-harness-trajectory/v1'
 require docs/decisions/0031-portable-agent-skills-bundle-contract.md 'Agent Skills specification'
 require scripts/README.md 'validate-skill-bundles.py'
+require docs/decisions/0032-signed-build-provenance-for-core-artifacts.md 'actions/attest@v4'
+require README.md 'gh attestation verify'
+require scripts/README.md 'GitHub artifact attestation'
 
 "$root/tests/installer/assert-agent-authority-contract.sh" >/dev/null
 "$root/tests/installer/assert-install-manifest-links.sh" >/dev/null
