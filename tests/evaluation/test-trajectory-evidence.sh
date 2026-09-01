@@ -41,6 +41,7 @@ if python3 "$validator" "$fixtures/invalid-sensitive-payload.json" >"$temporary_
 fi
 jq -e '(.valid == false) and
   ([.errors[].code] | index("forbidden_field") != null) and
+  ([.errors[].code] | index("invalid_metadata_label") != null) and
   (tostring | contains("must-not-be-recorded") | not)' \
   "$temporary_root/sensitive.json" >/dev/null
 

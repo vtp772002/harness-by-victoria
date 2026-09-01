@@ -36,7 +36,9 @@ The input must contain:
 }
 ```
 
-Only bounded identifiers and references are accepted. The validator rejects
+Only bounded identifier-like labels and references are accepted. Labels use a
+portable ASCII character set with spaces and common separators; they cannot
+contain free-form payload syntax. The validator rejects
 prompt, transcript, content, stdout/stderr, tool input/output, secret, token,
 credential, and arbitrary unknown fields. The input is bounded at 2 MB and the
 trajectory at 10,000 events.

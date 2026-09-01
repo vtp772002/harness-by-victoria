@@ -96,6 +96,8 @@ Out of scope:
       rather than a predictable process-ID path.
 - [x] Choose and implement the metadata-only external trajectory evidence
       adapter, with fail-closed privacy, authority ordering, and outcome proof.
+- [x] Constrain trajectory producer labels to portable identifier-like metadata
+      so permitted fields cannot carry free-form payload syntax.
 - [x] Run full validation and record measured limits for this phase.
 
 ## Decisions
@@ -120,7 +122,7 @@ Out of scope:
   release identity, installer, workflow, and documentation contracts.
 - External evidence proof: metadata-only trajectory fixtures cover a completed
   mutation, an authority-boundary stop, mutation-before-authority rejection,
-  and forbidden sensitive payload rejection.
+  forbidden sensitive payload rejection, and free-form metadata-label rejection.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result

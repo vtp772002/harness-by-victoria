@@ -8,6 +8,7 @@
     "run_id": "run-invalid-002",
     "repository_revision": "0123456789abcdef0123456789abcdef01234567",
     "client": "fixture-runner",
+    "model": "prompt=must-not-be-recorded",
     "stdout": "must-not-be-recorded"
   },
   "events": [],

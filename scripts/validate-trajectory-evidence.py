@@ -18,6 +18,7 @@ MAX_EVENTS = 10_000
 MAX_PROOF_REFS = 64
 SAFE_REF = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+\-]{0,255}$")
 TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+\-]{0,127}$")
+LABEL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .:/_@+\-]{0,127}$")
 REVISION = re.compile(r"^[0-9a-f]{40}$")
 
 TOP_LEVEL_FIELDS = {"schema", "privacy", "run", "events", "outcome"}
@@ -109,6 +110,8 @@ def required_string(
     errors: list[dict[str, str]],
     *,
     pattern: re.Pattern[str] | None = None,
+    pattern_error_code: str = "invalid_reference",
+    pattern_error_message: str = "field must be a relative metadata reference",
     max_length: int = 256,
 ) -> str | None:
     field_path = path_for(path, key)
@@ -127,7 +130,7 @@ def required_string(
         add_error(errors, "invalid_string", field_path, "field must be a bounded single-line string")
         return None
     if pattern is not None and pattern.fullmatch(candidate) is None:
-        add_error(errors, "invalid_reference", field_path, "field must be a relative metadata reference")
+        add_error(errors, pattern_error_code, field_path, pattern_error_message)
         return None
     return candidate
 
@@ -139,11 +142,22 @@ def optional_string(
     errors: list[dict[str, str]],
     *,
     pattern: re.Pattern[str] | None = None,
+    pattern_error_code: str = "invalid_reference",
+    pattern_error_message: str = "field must be a relative metadata reference",
     max_length: int = 256,
 ) -> str | None:
     if key not in value:
         return None
-    return required_string(value, key, path, errors, pattern=pattern, max_length=max_length)
+    return required_string(
+        value,
+        key,
+        path,
+        errors,
+        pattern=pattern,
+        pattern_error_code=pattern_error_code,
+        pattern_error_message=pattern_error_message,
+        max_length=max_length,
+    )
 
 
 def validate_privacy(value: Any, errors: list[dict[str, str]]) -> None:
@@ -169,11 +183,17 @@ def validate_run(value: Any, errors: list[dict[str, str]]) -> None:
     revision = required_string(value, "repository_revision", path, errors, pattern=REVISION, max_length=40)
     if revision is not None and REVISION.fullmatch(revision) is None:
         add_error(errors, "invalid_revision", path_for(path, "repository_revision"), "repository_revision must be a 40-character lowercase Git revision")
-    # Keep producer labels portable across runtimes. They are bounded metadata,
-    # not identifiers used to address repository files or execute commands.
-    required_string(value, "client", path, errors, max_length=128)
-    optional_string(value, "model", path, errors, max_length=128)
-    optional_string(value, "runner", path, errors, max_length=128)
+    # Keep producer labels portable across runtimes while preventing a label
+    # from becoming a free-form payload field.
+    label_kwargs = {
+        "pattern": LABEL,
+        "pattern_error_code": "invalid_metadata_label",
+        "pattern_error_message": "field must be a bounded metadata label",
+        "max_length": 128,
+    }
+    required_string(value, "client", path, errors, **label_kwargs)
+    optional_string(value, "model", path, errors, **label_kwargs)
+    optional_string(value, "runner", path, errors, **label_kwargs)
     optional_string(value, "started_at", path, errors, max_length=64)
 
 
