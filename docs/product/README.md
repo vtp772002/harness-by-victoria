@@ -11,9 +11,10 @@ files after actual product domains, such as `overview.md`, `billing.md`,
 ## Current Product Contract
 
 No consumer-specific product contract is shipped in this generic directory.
-The upstream `repository-harness` contract lives in the root README, current
-workflow and architecture documents, lasting decisions, implementation, and
-executable tests.
+The `harness-by-victoria` contract lives in the root README, current workflow
+and architecture documents, lasting decisions, implementation, and executable
+tests. Upstream lineage is documented in the root README; it is not a second
+source of current product truth.
 
 ## Update Rule
 

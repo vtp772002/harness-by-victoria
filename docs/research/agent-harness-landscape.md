@@ -6,11 +6,11 @@ Date: 2026-08-31
 
 This is a dated landscape sweep, not a claim that one framework wins every
 task. It compares primary documentation and source repositories for the
-capabilities that matter to `repository-harness`: context portability,
+capabilities that matter to `harness-by-victoria`: context portability,
 authority and permission boundaries, durable recovery, evaluation, isolation,
 observability, interoperability, and release integrity.
 
-The conclusion is intentionally narrow: `repository-harness` should be the
+The conclusion is intentionally narrow: `harness-by-victoria` should be the
 repository protocol and proof layer that other agent runtimes can consume. It
 should not become another general-purpose agent runtime or orchestration
 control plane.

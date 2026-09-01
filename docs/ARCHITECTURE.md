@@ -1,6 +1,6 @@
 # Architecture
 
-`repository-harness` has one Rust binary, `harness`, plus thin Bash and
+`harness-by-victoria` has one Rust binary, `harness`, plus thin Bash and
 PowerShell bootstraps.
 
 ## Product Boundary

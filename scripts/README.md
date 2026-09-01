@@ -36,8 +36,11 @@ installed core. Its contract test is part of pre-merge validation.
 
 The bootstraps require a 64-character hexadecimal SHA-256 sidecar, normalize
 its case, verify the candidate checksum and reported version before delegating
-install or update. Before bootstrap-managed writes, they reject symlink or
-reparse-point traversal in managed target paths, including optional payloads,
+install or update. The source payload defaults to this repository. Until this
+repository publishes its own versioned binary release, the core binary still
+comes from the upstream release channel; `HARNESS_CORE_CLI_BASE_URL` can point
+to an authorized alternative. Before bootstrap-managed writes, they reject
+symlink or reparse-point traversal in managed target paths, including optional payloads,
 agent shims, and `.gitignore`. They do not contain a database or compatibility
 profile.
 

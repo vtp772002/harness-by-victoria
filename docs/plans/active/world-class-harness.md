@@ -8,7 +8,7 @@ Active
 
 ## Outcome
 
-Make `repository-harness` the strongest repository-centered harness for
+Make `harness-by-victoria` the strongest repository-centered harness for
 agent-ready software work: portable across major agent clients, explicit about
 authority and permissions, safe across interrupted maintenance, and measurable
 through reproducible behavior-level evidence.
