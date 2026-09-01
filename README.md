@@ -1,5 +1,7 @@
 # harness-by-victoria
 
+[![Pre-Merge Contract](https://github.com/vtp772002/harness-by-victoria/actions/workflows/premerge.yml/badge.svg?branch=main)](https://github.com/vtp772002/harness-by-victoria/actions/workflows/premerge.yml)
+
 Turn a software repository into a legible, agent-ready workspace with
 `harness-by-victoria`.
 
