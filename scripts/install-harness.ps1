@@ -290,11 +290,9 @@ function Write-ClaudeShim {
 
     if ($current.Success) {
         Backup-ClaudeFile
-        $content = [regex]::Replace(
-            $content,
-            $pattern,
-            [System.Text.RegularExpressions.MatchEvaluator]{ param($match) $block }
-        )
+        $before = $content.Substring(0, $current.Index)
+        $after = $content.Substring($current.Index + $current.Length)
+        $content = $before + $block + $after
         Set-Content -LiteralPath $target -Value $content -NoNewline
         Write-Step "updated  CLAUDE.md (refreshed Harness block; backup: $($script:BackupDir.Substring($script:TargetDir.Length + 1))/CLAUDE.md)"
     } elseif ($exists) {
