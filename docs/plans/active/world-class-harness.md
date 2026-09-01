@@ -137,6 +137,8 @@ Out of scope:
 - Hosted CI proof: run `33488461227` passed both the repository contract on
   Ubuntu and the PowerShell installer contract on Windows after the action
   migration; no Node 20 deprecation warning was emitted by the updated actions.
+  Follow-up run `33490034908` passed both jobs on the PowerShell Claude shim
+  parity revision, including repeated install/refresh behavior.
 - Repository-required checks: `bash scripts/validate-premerge.sh`.
 
 ## Result
@@ -150,4 +152,5 @@ managed writes now fail closed on broken symlinks and reparse points. Hosted
 CI now runs the Node 24-compatible action majors on both Linux and Windows.
 The plan remains active for future authority-gated work such as wiring a specific
 external runner, defining a machine-facing CLI error contract, or adding
-client portability; none of those choices are implied by the current adapter.
+additional client adapters; none of those choices are implied by the current
+adapter.
